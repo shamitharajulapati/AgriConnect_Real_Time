@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuth() { return request.auth != null; }
+    function isOwner(uid) { return request.auth.uid == uid; }
+    function isValidString(f) { return f is string && f.size() < 500; }
+
+    match /users/{uid} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid);
+    }
+
+    match /market_prices/{id} {
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    match /price_predictions/{id} {
+      allow read: if isAuth();
+      allow write: if false;
+    }
+
+    match /farmer_crops/{uid} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid);
+    }
+
+    match /buyer_listings/{id} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isValidString(request.resource.data.commodity);
+      allow update, delete: if isOwner(resource.data.buyerUID);
+    }
+
+    match /chat_rooms/{id} {
+      allow read, write: if isAuth() &&
+        (resource == null ||
+         request.auth.uid == resource.data.farmerUID ||
+         request.auth.uid == resource.data.buyerUID);
+    }
+
+    match /alerts/{id} {
+      allow read, write: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId);
+    }
+  }
+}

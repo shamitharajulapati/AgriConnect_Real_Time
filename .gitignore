@@ -1,0 +1,35 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Android release signing — losing control of this key breaks app updates permanently
+*.jks
+*.keystore
+key.properties
+
+# Dependencies
+node_modules/
+.dart_tool/
+.pub-cache/
+__pycache__/
+*.pyc
+
+# Build output
+build/
+*.apk
+*.aab
+dist/
+
+# IDE / OS / local tooling
+.vscode/
+.idea/
+.claude/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs / scratch output
+*.log
+analyze_out.txt
+analyze2.txt

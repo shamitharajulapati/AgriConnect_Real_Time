@@ -1,0 +1,8 @@
+flask
+gunicorn
+numpy
+pandas
+scikit-learn
+statsmodels==0.14.6
+joblib
+requests
