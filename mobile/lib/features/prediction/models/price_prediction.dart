@@ -21,6 +21,7 @@ class PricePrediction {
   final double confidence;
   final String unit;
   final DateTime generatedAt;
+  final bool isDemo;
 
   const PricePrediction({
     required this.commodity,
@@ -29,6 +30,7 @@ class PricePrediction {
     required this.confidence,
     required this.unit,
     required this.generatedAt,
+    this.isDemo = false,
   });
 
   static PricePrediction mock(String commodity, double basePrice) {
@@ -51,6 +53,7 @@ class PricePrediction {
       confidence: 0.82 + rng.nextDouble() * 0.15,
       unit: 'INR/quintal',
       generatedAt: DateTime.now(),
+      isDemo: true,
     );
   }
 }

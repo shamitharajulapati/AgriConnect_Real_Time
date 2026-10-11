@@ -3,8 +3,11 @@ const env = require('../config/env');
 
 async function callML(endpoint, data) {
   try {
+    if (!env.ML_SERVICE_SECRET && env.NODE_ENV !== 'development') {
+      throw new Error('ML_SERVICE_SECRET is not configured on the backend');
+    }
     const res = await axios.post(`${env.ML_SERVICE_URL}${endpoint}`, data, {
-      headers: { 'X-Secret': env.ML_SERVICE_SECRET },
+      headers: env.ML_SERVICE_SECRET ? { 'X-Secret': env.ML_SERVICE_SECRET } : {},
       timeout: 30000,
     });
     return res.data;

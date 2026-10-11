@@ -2,9 +2,10 @@
   "SUPABASE_URL": "https://zkshiowbasmkhbopvvwb.supabase.co",
   "SUPABASE_ANON_KEY": "sb_publishable_8aJctZRYa100wlCBA_u9eA_t88VNc-o",
   "ML_SERVICE_URL": "https://agriconnect-realtime.onrender.com",
-  "ML_SERVICE_SECRET": "agriconnect_ml_secret_2024",
   "OPENWEATHER_KEY": "",
-  "AGMARKNET_KEY": "579b464db66ec23bdd000001f121c7895e3946c36a93e4af78708286",
   "GOOGLE_WEB_CLIENT_ID": "932509098482-njr4h818dk0rnaq8jbu7n527mrld9ith.apps.googleusercontent.com",
-  "AUTH_MOCK": false
+  "AUTH_MOCK": false,
+  "BUYER_LISTINGS_MOCK": true,
+  "ML_DEMO_FALLBACK": false,
+  "ANALYTICS_DEMO_FALLBACK": false
 }

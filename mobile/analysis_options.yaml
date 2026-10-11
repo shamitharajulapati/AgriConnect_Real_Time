@@ -28,6 +28,12 @@ analyzer:
     deprecated_member_use: ignore
     unused_import: ignore
     unnecessary_brace_in_string_interps: ignore
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

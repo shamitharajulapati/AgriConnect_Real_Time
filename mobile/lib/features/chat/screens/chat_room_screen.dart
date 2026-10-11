@@ -30,10 +30,17 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty) return;
-    ref.read(chatMessagesProvider(widget.roomId).notifier).send(text);
+    final sent = await ref.read(chatMessagesProvider(widget.roomId).notifier).send(text);
+    if (!mounted) return;
+    if (!sent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Message could not be sent. Please try again.')),
+      );
+      return;
+    }
     _msgCtrl.clear();
     _scrollToBottom();
   }
@@ -137,7 +144,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         _InputBar(controller: _msgCtrl, onSend: () {
           if (_attachedImages.isNotEmpty) {
             // Send images as messages
-            for (final img in _attachedImages) {
+            for (var i = 0; i < _attachedImages.length; i++) {
               ref.read(chatMessagesProvider(widget.roomId).notifier).send('📷 Photo sent');
             }
             setState(() => _attachedImages.clear());

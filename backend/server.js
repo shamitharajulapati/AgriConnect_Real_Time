@@ -32,16 +32,18 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-// Start
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`AgriConnect backend running on port ${PORT}`));
+// Start network listeners and background jobs only when launched directly.
+// Requiring the app in tests should not bind a fixed port or run database jobs.
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => console.log(`AgriConnect backend running on port ${PORT}`));
 
-// Start cron jobs + seed initial data
-if (process.env.NODE_ENV !== 'test') {
-  require('./src/services/cron.service');
-  // Seed prices on startup if Supabase is empty
-  const { seedInitialPrices } = require('./src/services/market_price.service');
-  seedInitialPrices().catch(console.error);
+  if (process.env.NODE_ENV !== 'test') {
+    require('./src/services/cron.service');
+    // Seed prices on startup if Supabase is empty
+    const { seedInitialPrices } = require('./src/services/market_price.service');
+    seedInitialPrices().catch(console.error);
+  }
 }
 
 module.exports = app;

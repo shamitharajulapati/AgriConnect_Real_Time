@@ -145,7 +145,6 @@ function parseAgmarknetHTML(html, commodity, state) {
 // SOURCE 4: Seed real price data (guaranteed fallback)
 // ─────────────────────────────────────────────────────────────
 function getSeedPrices() {
-  const today = new Date().toISOString().split('T')[0];
   // Real approximate prices as of 2024 (INR/quintal)
   return [
     { commodity: 'Tomato',    market: 'Azadpur',     state: 'Delhi',           min: 1000, modal: 1500, max: 2000 },
@@ -180,7 +179,7 @@ function getSeedPrices() {
     max_price: r.max,
     modal_price: r.modal,
     unit: 'quintal',
-    arrival_date: today,
+    arrival_date: '2024-01-01',
     source: 'seed_data',
   }));
 }
@@ -200,18 +199,20 @@ async function syncMarketPrices(state, commodity) {
     records = await fetchFromENAM(commodity);
   }
 
-  // Try Source 3: Scraper
-  if (!records?.length) {
-    records = await fetchFromScraper(commodity, state);
-  }
+  // eNAM can ignore state filters; apply both requested filters to every
+  // source before saving anything.
+  records = (records || []).filter(record => {
+    const stateMatches = !state || state.toLowerCase() === 'all' ||
+      String(record.state || '').trim().toLowerCase() === state.trim().toLowerCase();
+    const commodityMatches = !commodity ||
+      String(record.commodity || '').trim().toLowerCase() === commodity.trim().toLowerCase();
+    return stateMatches && commodityMatches;
+  });
 
   // Fallback: seed data
   if (!records?.length) {
-    logger.info('[Seed] Using curated seed price data');
-    records = getSeedPrices();
-    if (state && state !== 'all') records = records.filter(r => r.state === state);
-    if (commodity) records = records.filter(r => r.commodity === commodity);
-    if (!records.length) records = getSeedPrices(); // if filtered to nothing, use all
+    logger.warn('[Market] No live price records found; skipping sync instead of inserting sample prices.');
+    return 0;
   }
 
   // Upsert to Supabase in batches

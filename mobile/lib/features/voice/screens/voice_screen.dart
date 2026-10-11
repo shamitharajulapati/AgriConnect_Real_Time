@@ -458,6 +458,8 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'or': 'ଆପଣଙ୍କ ପ୍ରଶ୍ନ ବୁଝିଲି। 🤔\nAgriConnect ରେ ପଚାରନ୍ତୁ:\n• ଦର/ଭାଓ — ବଜାର ଦର\n• ଫସଲ/ଚାଷ — ପରାମର୍ଶ\n• ପାଣିପାଗ — ଆଜିର ଅନୁମାନ\n• ବିକ୍ରି — ସଠିକ ସମୟ',
   };
 
+  // Retained for the voice demo fallback; live requests use _fetchRealResponse.
+  // ignore: unused_element
   String _getResponse(String q) {
     final ql = q.toLowerCase();
 

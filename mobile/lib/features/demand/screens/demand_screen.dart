@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/providers.dart';
 import '../../../services/mock_api_service.dart' show DemandResult;
+import '../../../widgets/demo_data_notice.dart';
 
 class DemandScreen extends ConsumerStatefulWidget {
   const DemandScreen({super.key});
@@ -30,7 +31,10 @@ class _DemandScreenState extends ConsumerState<DemandScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final result = await ref.read(apiProvider).fetchDemand(_selectedCrop);
+      final result = await ref.read(apiProvider).fetchDemand(
+        _selectedCrop,
+        state: ref.read(userLocationProvider),
+      );
       setState(() { _data = result; _loading = false; });
     } catch (e) {
       setState(() { _error = 'Could not load demand data. Please try again.'; _loading = false; });
@@ -86,8 +90,10 @@ class _DemandScreenState extends ConsumerState<DemandScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
+                        if (_data!.isDemo) const DemoDataNotice(),
                         _DemandIndexCard(data: _data!).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
                         const SizedBox(height: 16),
+                        const _MarketProxyNote(),
                         _DemandChartCard(data: _data!).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
                         const SizedBox(height: 16),
                         _RegionalDemandCard(data: _data!).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
@@ -157,6 +163,20 @@ class _DemandIndexCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _MarketProxyNote extends StatelessWidget {
+  const _MarketProxyNote();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.only(bottom: 12),
+        child: Text(
+          'Estimated market activity based on recent Agmarknet price records; buyer orders are not measured.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+      );
 }
 
 class _DemandChartCard extends ConsumerWidget {

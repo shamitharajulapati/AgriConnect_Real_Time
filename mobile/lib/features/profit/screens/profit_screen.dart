@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/providers.dart';
 import '../../../services/mock_api_service.dart';
+import '../../../widgets/demo_data_notice.dart';
 
 class ProfitScreen extends ConsumerWidget {
   const ProfitScreen({super.key});
@@ -45,6 +46,7 @@ class ProfitScreen extends ConsumerWidget {
           // Advice
           advice.when(
             data: (a) => Column(children: [
+              if (a.isDemo) const DemoDataNotice(),
               _DecisionBanner(advice: a).animate().scale(duration: 450.ms, curve: Curves.elasticOut),
               const SizedBox(height: 14),
               _PriceCompare(advice: a).animate().fadeIn(delay: 150.ms),

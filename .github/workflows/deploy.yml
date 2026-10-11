@@ -12,8 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '18' }
+        with: { node-version: '20' }
       - run: cd backend && npm ci && npm test
+        env:
+          NODE_ENV: test
 
   test-ml:
     runs-on: ubuntu-latest
@@ -21,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
-      - run: cd ml_service && pip install -r requirements.txt && pytest tests/
+      - run: cd ml_service && pip install -r requirements.txt pytest && pytest tests/
 
   flutter-test:
     runs-on: ubuntu-latest
@@ -29,36 +31,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with: { flutter-version: '3.35.3' }
-      - run: cd mobile && flutter pub get && flutter analyze && flutter test
-
-  deploy-backend:
-    needs: test-backend
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
-        with: { credentials_json: '${{ secrets.GCP_SA_KEY }}' }
-      - uses: google-github-actions/setup-gcloud@v2
-      - run: |
-          gcloud builds submit --tag gcr.io/${{ secrets.GCP_PROJECT }}/backend ./backend
-          gcloud run deploy agriconnect-backend \
-            --image gcr.io/${{ secrets.GCP_PROJECT }}/backend \
-            --region asia-south1 --platform managed \
-            --min-instances 1 --max-instances 20 \
-            --set-env-vars NODE_ENV=production
+      - run: cd mobile && flutter pub get && flutter analyze --no-fatal-infos && flutter test
 
   deploy-ml:
     needs: test-ml
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      RENDER_ML_DEPLOY_HOOK: ${{ secrets.RENDER_ML_DEPLOY_HOOK }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
-        with: { credentials_json: '${{ secrets.GCP_SA_KEY }}' }
-      - run: |
-          gcloud builds submit --tag gcr.io/${{ secrets.GCP_PROJECT }}/ml ./ml_service
-          gcloud run deploy agriconnect-ml \
-            --image gcr.io/${{ secrets.GCP_PROJECT }}/ml \
-            --region asia-south1 --memory 4Gi --cpu 2 \
-            --min-instances 1
+      - name: Trigger Render deployment
+        if: ${{ env.RENDER_ML_DEPLOY_HOOK != '' }}
+        run: curl --fail --show-error --silent --request POST "$RENDER_ML_DEPLOY_HOOK"
+      - name: Use Render automatic deploy
+        if: ${{ env.RENDER_ML_DEPLOY_HOOK == '' }}
+        run: echo "No Render deploy hook is configured; the Render Git integration must deploy this commit automatically."

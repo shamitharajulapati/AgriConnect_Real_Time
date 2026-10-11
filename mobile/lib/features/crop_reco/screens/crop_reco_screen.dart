@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/providers.dart';
 import '../../../services/mock_api_service.dart' show CropRecoResult;
+import '../../../widgets/demo_data_notice.dart';
 
 class CropRecoScreen extends ConsumerStatefulWidget {
   const CropRecoScreen({super.key});
@@ -49,9 +50,9 @@ class _CropRecoScreenState extends ConsumerState<CropRecoScreen> {
 
   Future<void> _getRecommendations() async {
     setState(() { _loading = true; _error = null; });
-    final weather = ref.read(weatherProvider);
-    final temperature = weather.asData?.value.temperature.toDouble() ?? 28.0;
     try {
+      final weather = await ref.read(weatherProvider.future);
+      final temperature = weather.temperature.toDouble();
       final results = await ref.read(apiProvider).fetchCropRecommendation(
         soilType: _soilType,
         season: _season,
@@ -169,6 +170,7 @@ class _CropRecoScreenState extends ConsumerState<CropRecoScreen> {
             ).animate().fadeIn(),
             if (_recommendations != null) ...[
               const SizedBox(height: 20),
+              if (_recommendations!.any((item) => item.isDemo)) const DemoDataNotice(),
               Text(s.cropRecoResult, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
                   .animate()
                   .fadeIn(delay: 100.ms),

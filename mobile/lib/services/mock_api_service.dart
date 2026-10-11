@@ -60,7 +60,16 @@ class MockApiService {
           reason: 'Market conditions suggest holding for better returns.',
           factors: ['Stable demand', 'No major supply disruptions'],
         );
-    return _delay(advice);
+    return _delay(ProfitAdvice(
+      decision: advice.decision,
+      currentPrice: advice.currentPrice,
+      projectedPrice: advice.projectedPrice,
+      roi: advice.roi,
+      confidence: advice.confidence,
+      reason: advice.reason,
+      factors: advice.factors,
+      isDemo: true,
+    ));
   }
 
   // ── Demand ───────────────────────────────────────────────────────────────────
@@ -84,6 +93,7 @@ class MockApiService {
       peakDays: rng.nextInt(18) + 3,
       weeklyDemand: weekly,
       regions: regions,
+      isDemo: true,
     ));
   }
 
@@ -153,6 +163,7 @@ class MockApiService {
         description: c.description,
         duration: c.duration,
         waterReq: c.waterReq,
+        isDemo: true,
       );
     }).toList()
       ..sort((a, b) => b.matchScore.compareTo(a.matchScore));
@@ -240,7 +251,7 @@ class MockApiService {
         id: 'p${e.key}', commodity: e.value.$1, market: e.value.$2,
         state: e.value.$3, minPrice: min, maxPrice: max,
         modalPrice: modal, unit: 'quintal', date: DateTime.now(),
-        source: 'agmarknet', previousModalPrice: prevModal,
+        source: 'demo_data', previousModalPrice: prevModal,
       );
     }).toList();
   }
@@ -307,7 +318,8 @@ class ProfitAdvice {
   final int confidence;
   final String reason;
   final List<String> factors;
-  const ProfitAdvice({required this.decision, required this.currentPrice, required this.projectedPrice, required this.roi, required this.confidence, required this.reason, required this.factors});
+  final bool isDemo;
+  const ProfitAdvice({required this.decision, required this.currentPrice, required this.projectedPrice, required this.roi, required this.confidence, required this.reason, required this.factors, this.isDemo = false});
 }
 
 class DemandResult {
@@ -316,7 +328,8 @@ class DemandResult {
   final int peakDays;
   final List<double> weeklyDemand;
   final List<RegionDemand> regions;
-  const DemandResult({required this.commodity, required this.demandLevel, required this.demandIndex, required this.trend, required this.peakDays, required this.weeklyDemand, required this.regions});
+  final bool isDemo;
+  const DemandResult({required this.commodity, required this.demandLevel, required this.demandIndex, required this.trend, required this.peakDays, required this.weeklyDemand, required this.regions, this.isDemo = false});
 }
 
 class RegionDemand {
@@ -328,7 +341,8 @@ class RegionDemand {
 class CropRecoResult {
   final String name, emoji, description, duration, waterReq;
   final double matchScore;
-  const CropRecoResult({required this.name, required this.emoji, required this.matchScore, required this.description, required this.duration, required this.waterReq});
+  final bool isDemo;
+  const CropRecoResult({required this.name, required this.emoji, required this.matchScore, required this.description, required this.duration, required this.waterReq, this.isDemo = false});
 }
 
 class VoiceResponse {

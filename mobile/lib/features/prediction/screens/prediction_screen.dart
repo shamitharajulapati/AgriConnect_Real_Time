@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/providers.dart';
+import '../../../widgets/demo_data_notice.dart';
 import '../models/price_prediction.dart';
 import '../../../core/l10n/crop_names.dart';
 
@@ -65,7 +66,10 @@ class PredictionScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           // Prediction result
           prediction.when(
-            data: (pred) => Column(children: [
+            data: (pred) => pred.points.isEmpty
+                ? _ErrorCard(onRetry: () => ref.invalidate(predictionProvider))
+                : Column(children: [
+              if (pred.isDemo) const DemoDataNotice(),
               _ChartCard(pred: pred, horizon: horizon).animate().fadeIn(duration: 500.ms).slideY(begin: 0.06),
               const SizedBox(height: 14),
               _StatsRow(pred: pred, horizon: horizon).animate().fadeIn(delay: 200.ms),

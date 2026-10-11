@@ -13,7 +13,9 @@ import '../features/chat/models/chat_models.dart';
 
 // ── Language / Localisation ───────────────────────────────────────────────────
 final appLangProvider = StateProvider<String>((ref) => 'en');
-final appStringsProvider = Provider<AppStrings>((ref) => AppStrings(ref.watch(appLangProvider)));
+final appStringsProvider = Provider<AppStrings>(
+  (ref) => AppStrings(ref.watch(appLangProvider)),
+);
 
 // Single API provider — auto-selects Supabase or Mock
 final apiProvider = Provider((ref) => ApiService());
@@ -26,17 +28,23 @@ class MarketFilter {
   final String state;
   final String commodity;
   MarketFilter({this.state = 'All States', this.commodity = 'All'});
-  MarketFilter copyWith({String? state, String? commodity}) =>
-      MarketFilter(state: state ?? this.state, commodity: commodity ?? this.commodity);
+  MarketFilter copyWith({String? state, String? commodity}) => MarketFilter(
+    state: state ?? this.state,
+    commodity: commodity ?? this.commodity,
+  );
 }
 
-final marketPricesProvider = FutureProvider.autoDispose<List<MarketPrice>>((ref) {
+final marketPricesProvider = FutureProvider.autoDispose<List<MarketPrice>>((
+  ref,
+) {
   final filter = ref.watch(marketFilterProvider);
-  return ref.read(apiProvider).fetchMarketPrices(
-    state: filter.state,
-    commodity: filter.commodity,
-    limit: 30,
-  );
+  return ref
+      .read(apiProvider)
+      .fetchMarketPrices(
+        state: filter.state,
+        commodity: filter.commodity,
+        limit: 30,
+      );
 });
 
 // States already synced with the live Agmarknet feed this session — avoids re-syncing on every rebuild.
@@ -45,14 +53,33 @@ final syncedStatesProvider = StateProvider<Set<String>>((ref) => {});
 // The signed-in farmer's home district, used to prioritize their local market.
 final userDistrictProvider = StateProvider<String>((ref) => '');
 
-final priceHistoryProvider = FutureProvider.autoDispose.family<List<double>, String>((ref, commodity) {
-  return ref.read(apiProvider).fetchPriceHistory(commodity);
-});
+class PriceHistory {
+  final List<double> values;
+  final bool isDemo;
+  const PriceHistory(this.values, {this.isDemo = false});
+}
+
+final priceHistoryProvider = FutureProvider.autoDispose
+    .family<PriceHistory, String>((ref, commodity) async {
+      try {
+        final liveValues = await ref
+            .read(apiProvider)
+            .fetchPriceHistory(commodity);
+        if (liveValues.length >= 2 || !AppConfig.analyticsDemoFallback) {
+          return PriceHistory(liveValues);
+        }
+      } catch (_) {
+        if (!AppConfig.analyticsDemoFallback) rethrow;
+      }
+      final demoValues = await MockApiService().fetchPriceHistory(commodity);
+      return PriceHistory(demoValues, isDemo: true);
+    });
 
 // All current market prices, unfiltered — used by the Analytics dashboard.
-final analyticsMarketPricesProvider = FutureProvider.autoDispose<List<MarketPrice>>((ref) {
-  return ref.read(apiProvider).fetchMarketPrices(limit: 200);
-});
+final analyticsMarketPricesProvider =
+    FutureProvider.autoDispose<List<MarketPrice>>((ref) {
+      return ref.read(apiProvider).fetchMarketPrices(limit: 200);
+    });
 
 // ── Prediction ────────────────────────────────────────────────────────────────
 
@@ -81,14 +108,16 @@ final demandCropProvider = StateProvider((ref) => 'Tomato');
 
 final demandProvider = FutureProvider.autoDispose<DemandResult>((ref) {
   final crop = ref.watch(demandCropProvider);
-  return ref.read(apiProvider).fetchDemand(crop);
+  final location = ref.watch(userLocationProvider);
+  return ref.read(apiProvider).fetchDemand(crop, state: location);
 });
 
 // ── Alerts ────────────────────────────────────────────────────────────────────
 
-final alertsProvider = StateNotifierProvider<AlertsNotifier, AsyncValue<List<CropAlert>>>((ref) {
-  return AlertsNotifier(ref.read(apiProvider));
-});
+final alertsProvider =
+    StateNotifierProvider<AlertsNotifier, AsyncValue<List<CropAlert>>>((ref) {
+      return AlertsNotifier(ref.read(apiProvider));
+    });
 
 class AlertsNotifier extends StateNotifier<AsyncValue<List<CropAlert>>> {
   AlertsNotifier(this._api) : super(const AsyncValue.loading()) {
@@ -112,8 +141,12 @@ class AlertsNotifier extends StateNotifier<AsyncValue<List<CropAlert>>> {
   /// Checks every active, not-yet-triggered alert against current market
   /// prices, and fires (persists + updates local state) any that now match.
   Future<void> _evaluateAgainstLivePrices(List<CropAlert> alerts) async {
-    final pending = alerts.where((a) => a.isActive && a.triggeredAt == null &&
-        (a.type == AlertType.priceTarget || a.type == AlertType.priceSpike));
+    final pending = alerts.where(
+      (a) =>
+          a.isActive &&
+          a.triggeredAt == null &&
+          (a.type == AlertType.priceTarget || a.type == AlertType.priceSpike),
+    );
     if (pending.isEmpty) return;
 
     List<MarketPrice> prices;
@@ -128,39 +161,91 @@ class AlertsNotifier extends StateNotifier<AsyncValue<List<CropAlert>>> {
       if (matches.isEmpty) continue;
 
       final fires = alert.type == AlertType.priceTarget
-          ? matches.any((p) => alert.targetPrice != null && p.modalPrice >= alert.targetPrice!)
-          : matches.any((p) => (p.deltaPercent ?? 0).abs() >= _spikeThresholdPct);
+          ? matches.any(
+              (p) =>
+                  alert.targetPrice != null &&
+                  p.modalPrice >= alert.targetPrice!,
+            )
+          : matches.any(
+              (p) => (p.deltaPercent ?? 0).abs() >= _spikeThresholdPct,
+            );
 
       if (!fires || !mounted) continue;
 
       await _api.markAlertTriggered(alert.id);
-      state = state.whenData((list) => list.map((a) => a.id == alert.id
-          ? CropAlert(id: a.id, type: a.type, commodity: a.commodity, message: a.message,
-              isRead: a.isRead, isActive: a.isActive, createdAt: a.createdAt,
-              targetPrice: a.targetPrice, triggeredAt: DateTime.now())
-          : a).toList());
+      state = state.whenData(
+        (list) => list
+            .map(
+              (a) => a.id == alert.id
+                  ? CropAlert(
+                      id: a.id,
+                      type: a.type,
+                      commodity: a.commodity,
+                      message: a.message,
+                      isRead: a.isRead,
+                      isActive: a.isActive,
+                      createdAt: a.createdAt,
+                      targetPrice: a.targetPrice,
+                      triggeredAt: DateTime.now(),
+                    )
+                  : a,
+            )
+            .toList(),
+      );
     }
   }
 
-  Future<void> addAlert(AlertType type, String commodity, double? targetPrice) async {
+  Future<void> addAlert(
+    AlertType type,
+    String commodity,
+    double? targetPrice,
+  ) async {
     final alert = await _api.createAlert(type, commodity, targetPrice);
     state = state.whenData((list) => [alert, ...list]);
   }
 
   void markRead(String id) {
     _api.markAlertRead(id);
-    state = state.whenData((list) => list.map((a) => a.id == id
-        ? CropAlert(id: a.id, type: a.type, commodity: a.commodity, message: a.message, isRead: true, isActive: a.isActive, createdAt: a.createdAt, targetPrice: a.targetPrice, triggeredAt: a.triggeredAt)
-        : a).toList());
+    state = state.whenData(
+      (list) => list
+          .map(
+            (a) => a.id == id
+                ? CropAlert(
+                    id: a.id,
+                    type: a.type,
+                    commodity: a.commodity,
+                    message: a.message,
+                    isRead: true,
+                    isActive: a.isActive,
+                    createdAt: a.createdAt,
+                    targetPrice: a.targetPrice,
+                    triggeredAt: a.triggeredAt,
+                  )
+                : a,
+          )
+          .toList(),
+    );
   }
 
   void markAllRead() {
     _api.markAllAlertsRead();
-    state = state.whenData((list) => list.map((a) => CropAlert(
-      id: a.id, type: a.type, commodity: a.commodity, message: a.message,
-      isRead: true, isActive: a.isActive, createdAt: a.createdAt,
-      targetPrice: a.targetPrice, triggeredAt: a.triggeredAt,
-    )).toList());
+    state = state.whenData(
+      (list) => list
+          .map(
+            (a) => CropAlert(
+              id: a.id,
+              type: a.type,
+              commodity: a.commodity,
+              message: a.message,
+              isRead: true,
+              isActive: a.isActive,
+              createdAt: a.createdAt,
+              targetPrice: a.targetPrice,
+              triggeredAt: a.triggeredAt,
+            ),
+          )
+          .toList(),
+    );
   }
 
   void delete(String id) {
@@ -179,8 +264,8 @@ final chatRoomsProvider = FutureProvider.autoDispose<List<ChatRoom>>((ref) {
 
 final chatMessagesProvider = StateNotifierProvider.autoDispose
     .family<ChatNotifier, List<ChatMessage>, String>((ref, roomId) {
-  return ChatNotifier(ref.read(apiProvider), roomId);
-});
+      return ChatNotifier(ref.read(apiProvider), roomId);
+    });
 
 class ChatNotifier extends StateNotifier<List<ChatMessage>> {
   ChatNotifier(this._api, this._roomId) : super([]) {
@@ -202,7 +287,7 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
     });
   }
 
-  Future<void> send(String text) async {
+  Future<bool> send(String text) async {
     // Optimistic update
     final optimistic = ChatMessage(
       id: 'pending_${DateTime.now().millisecondsSinceEpoch}',
@@ -214,7 +299,15 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
     );
     state = [...state, optimistic];
 
-    final sent = await _api.sendMessage(_roomId, _myId, text);
+    late final ChatMessage sent;
+    try {
+      sent = await _api.sendMessage(_roomId, _myId, text);
+    } catch (_) {
+      if (mounted) {
+        state = state.where((message) => message.id != optimistic.id).toList();
+      }
+      return false;
+    }
 
     // Replace optimistic with real
     state = state.map((m) => m.id == optimistic.id ? sent : m).toList();
@@ -230,16 +323,20 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
           'What is the best price you can offer?',
           'We are interested. Let\'s finalize the deal.',
         ];
-        state = [...state, ChatMessage(
-          id: 'reply_${DateTime.now().millisecondsSinceEpoch}',
-          senderId: 'buyer_1',
-          text: replies[DateTime.now().second % replies.length],
-          timestamp: DateTime.now(),
-          isRead: false,
-          status: MessageStatus.delivered,
-        )];
+        state = [
+          ...state,
+          ChatMessage(
+            id: 'reply_${DateTime.now().millisecondsSinceEpoch}',
+            senderId: 'buyer_1',
+            text: replies[DateTime.now().second % replies.length],
+            timestamp: DateTime.now(),
+            isRead: false,
+            status: MessageStatus.delivered,
+          ),
+        ];
       });
     }
+    return true;
   }
 }
 
@@ -248,20 +345,29 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
 class CropRecoParams {
   final String soilType, season;
   final double temperature, rainfall;
-  const CropRecoParams({required this.soilType, required this.season, required this.temperature, required this.rainfall});
+  const CropRecoParams({
+    required this.soilType,
+    required this.season,
+    required this.temperature,
+    required this.rainfall,
+  });
 }
 
 final cropRecoParamsProvider = StateProvider<CropRecoParams?>((ref) => null);
 
-final cropRecoProvider = FutureProvider.autoDispose<List<CropRecoResult>>((ref) async {
+final cropRecoProvider = FutureProvider.autoDispose<List<CropRecoResult>>((
+  ref,
+) async {
   final params = ref.watch(cropRecoParamsProvider);
   if (params == null) return [];
-  return ref.read(apiProvider).fetchCropRecommendation(
-    soilType: params.soilType,
-    season: params.season,
-    temperature: params.temperature,
-    rainfall: params.rainfall,
-  );
+  return ref
+      .read(apiProvider)
+      .fetchCropRecommendation(
+        soilType: params.soilType,
+        season: params.season,
+        temperature: params.temperature,
+        rainfall: params.rainfall,
+      );
 });
 
 // ── Weather ───────────────────────────────────────────────────────────────────
@@ -285,7 +391,10 @@ final backendStatusProvider = Provider<BackendStatus>((ref) {
 class BackendStatus {
   final bool isSupabaseConnected;
   final bool isMlConnected;
-  const BackendStatus({required this.isSupabaseConnected, required this.isMlConnected});
+  const BackendStatus({
+    required this.isSupabaseConnected,
+    required this.isMlConnected,
+  });
   bool get isFullyConnected => isSupabaseConnected && isMlConnected;
   String get modeLabel => isSupabaseConnected ? '🟢 Live' : '🟡 Demo Mode';
 }

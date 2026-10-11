@@ -3,12 +3,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_config.dart';
 import '../../../core/router/app_routes.dart';
 import '../models/buyer_listing.dart';
 
 final _buyersProvider = FutureProvider.autoDispose<List<BuyerListing>>((ref) async {
-  await Future.delayed(const Duration(milliseconds: 800));
-  return BuyerListing.mockListings;
+  if (AppConfig.showMockBuyerListings) return BuyerListing.mockListings;
+  return const <BuyerListing>[];
 });
 
 final _filterProvider = StateProvider<String>((ref) => 'All');
@@ -32,7 +33,12 @@ class FindBuyersScreen extends ConsumerWidget {
             color: AppColors.primary,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Active buyers looking to purchase', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
+              Text(
+                AppConfig.showMockBuyerListings
+                    ? 'Sample buyer listings for demo'
+                    : 'Active buyers looking to purchase',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13),
+              ),
               const SizedBox(height: 10),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -72,7 +78,12 @@ class FindBuyersScreen extends ConsumerWidget {
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Icon(Icons.search_off, size: 56, color: AppColors.textSecondary.withValues(alpha: 0.4)),
                       const SizedBox(height: 12),
-                      Text('No buyers for $filter right now', style: const TextStyle(color: AppColors.textSecondary)),
+                      Text(
+                        filter == 'All'
+                            ? 'No active buyer listings right now'
+                            : 'No active buyer listings for $filter right now',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
                     ]),
                   );
                 }

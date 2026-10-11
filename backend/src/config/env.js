@@ -6,7 +6,7 @@ const envSchema = z.object({
   AGMARKNET_API_KEY: z.string().min(1).default('demo_key'),
   OPENWEATHER_KEY: z.string().min(1).default('demo_key'),
   ML_SERVICE_URL: z.string().url().default('http://localhost:5000'),
-  ML_SERVICE_SECRET: z.string().min(8).default('dev_secret_key'),
+  ML_SERVICE_SECRET: z.string().min(16).optional(),
   GOOGLE_MAPS_KEY: z.string().min(1).default('demo_key'),
   FIREBASE_PROJECT_ID: z.string().default('agri-connect-dev'),
 });

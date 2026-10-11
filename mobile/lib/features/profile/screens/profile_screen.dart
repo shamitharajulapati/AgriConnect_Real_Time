@@ -380,9 +380,8 @@ class _SectionCard extends StatelessWidget {
 class _SettingTile extends StatelessWidget {
   final String label;
   final IconData icon;
-  final String? trailing;
   final VoidCallback onTap;
-  const _SettingTile(this.label, this.icon, {this.trailing, required this.onTap});
+  const _SettingTile(this.label, this.icon, {required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -393,7 +392,6 @@ class _SettingTile extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (trailing != null) Text(trailing!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
         ],
       ),
