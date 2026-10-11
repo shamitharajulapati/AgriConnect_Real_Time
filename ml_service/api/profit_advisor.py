@@ -1,14 +1,13 @@
 from datetime import datetime
-from api.price_prediction import predict as predict_price, BASE_PRICES
+from api.price_prediction import predict as predict_price
 
 
 def advise(params: dict) -> dict:
     commodity = params.get('commodity', 'Tomato')
     state = params.get('state', 'Karnataka')
 
-    current_price = float(BASE_PRICES.get(commodity, 1000))
-
     forecast = predict_price({'commodity': commodity, 'state': state, 'days': 14})
+    current_price = float(forecast['currentPrice'])
     points = forecast['points']
     confidence = forecast.get('confidence', 0.75)
 
