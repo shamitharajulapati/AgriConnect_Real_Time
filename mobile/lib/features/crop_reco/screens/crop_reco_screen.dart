@@ -19,7 +19,6 @@ class _CropRecoScreenState extends ConsumerState<CropRecoScreen> {
   String _season = 'Kharif';
   double _rainfall = 800;
   bool _loading = false;
-  String? _error;
   List<CropRecoResult>? _recommendations;
   String _userState = '';
   String _userDistrict = '';
@@ -45,23 +44,47 @@ class _CropRecoScreenState extends ConsumerState<CropRecoScreen> {
   }
 
   static const _soilTypes = ['Sandy', 'Loamy', 'Clay', 'Silt', 'Black Cotton'];
-  static const _seasons = ['Kharif (Jun-Sep)', 'Rabi (Oct-Mar)', 'Zaid (Apr-Jun)'];
-  static const _rainfallOptions = {'Low': 400.0, 'Medium': 800.0, 'High': 1400.0};
+  static const _seasons = [
+    'Kharif (Jun-Sep)',
+    'Rabi (Oct-Mar)',
+    'Zaid (Apr-Jun)',
+  ];
+  static const _rainfallOptions = {
+    'Low': 400.0,
+    'Medium': 800.0,
+    'High': 1400.0,
+  };
 
   Future<void> _getRecommendations() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+    });
     try {
-      final weather = await ref.read(weatherProvider.future);
-      final temperature = weather.temperature.toDouble();
-      final results = await ref.read(apiProvider).fetchCropRecommendation(
-        soilType: _soilType,
-        season: _season,
-        temperature: temperature,
-        rainfall: _rainfall,
-      );
-      setState(() { _recommendations = results; _loading = false; });
+      // Weather can be unreachable on a local/dev network. A reasonable
+      // default keeps the local soil/season/rainfall rules available; the
+      // temperature field remains visibly approximate in that case.
+      var temperature = 28.0;
+      try {
+        final weather = await ref.read(weatherProvider.future);
+        temperature = weather.temperature.toDouble();
+      } catch (_) {}
+      final results = await ref
+          .read(apiProvider)
+          .fetchCropRecommendation(
+            soilType: _soilType,
+            season: _season,
+            temperature: temperature,
+            rainfall: _rainfall,
+          );
+      setState(() {
+        _recommendations = results;
+        _loading = false;
+      });
     } catch (e) {
-      setState(() { _error = 'Could not get recommendations. Please try again.'; _loading = false; });
+      debugPrint('Crop recommendation request failed: $e');
+      setState(() {
+        _loading = false;
+      });
     }
   }
 
@@ -81,104 +104,182 @@ class _CropRecoScreenState extends ConsumerState<CropRecoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(s.cropTellFarm, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      s.cropTellFarm,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     // Location info
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08), borderRadius: BorderRadius.circular(10)),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.location_on, color: AppColors.primary, size: 20),
+                          const Icon(
+                            Icons.location_on,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
-                          Text(_locationLabel, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary)),
+                          Text(
+                            _locationLabel,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
                           const Spacer(),
-                          Builder(builder: (_) {
-                            final weather = ref.watch(weatherProvider);
-                            return Text(
-                              weather.when(
-                                data: (w) => '${w.temperature}°C · ${w.humidity}% Humidity',
-                                loading: () => '...',
-                                error: (_, __) => '',
-                              ),
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                            );
-                          }),
+                          Builder(
+                            builder: (_) {
+                              final weather = ref.watch(weatherProvider);
+                              return Text(
+                                weather.when(
+                                  data: (w) =>
+                                      '${w.temperature}°C · ${w.humidity}% Humidity',
+                                  loading: () => '...',
+                                  error: (_, __) => '',
+                                ),
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text('${s.cropRecoSoil}:', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      '${s.cropRecoSoil}:',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _soilTypes.map((s) => ChoiceChip(
-                            label: Text(s),
-                            selected: s == _soilType,
-                            onSelected: (_) => setState(() => _soilType = s),
-                            selectedColor: AppColors.primary,
-                            labelStyle: TextStyle(color: s == _soilType ? Colors.white : AppColors.textPrimary, fontSize: 12),
-                          )).toList(),
+                      children: _soilTypes
+                          .map(
+                            (s) => ChoiceChip(
+                              label: Text(s),
+                              selected: s == _soilType,
+                              onSelected: (_) => setState(() => _soilType = s),
+                              selectedColor: AppColors.primary,
+                              labelStyle: TextStyle(
+                                color: s == _soilType
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 16),
-                    Text('${s.cropRecoSeason}:', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      '${s.cropRecoSeason}:',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _seasons.map((s) => ChoiceChip(
-                            label: Text(s.split(' ')[0]),
-                            selected: s.startsWith(_season),
-                            onSelected: (_) => setState(() => _season = s.split(' ')[0]),
-                            selectedColor: AppColors.secondary,
-                            labelStyle: TextStyle(color: s.startsWith(_season) ? Colors.white : AppColors.textPrimary, fontSize: 12),
-                          )).toList(),
+                      children: _seasons
+                          .map(
+                            (s) => ChoiceChip(
+                              label: Text(s.split(' ')[0]),
+                              selected: s.startsWith(_season),
+                              onSelected: (_) =>
+                                  setState(() => _season = s.split(' ')[0]),
+                              selectedColor: AppColors.secondary,
+                              labelStyle: TextStyle(
+                                color: s.startsWith(_season)
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Rainfall:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Rainfall:',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _rainfallOptions.entries.map((e) => ChoiceChip(
-                            label: Text('${e.key} (${e.value.toInt()}mm)'),
-                            selected: _rainfall == e.value,
-                            onSelected: (_) => setState(() => _rainfall = e.value),
-                            selectedColor: AppColors.accent,
-                            labelStyle: TextStyle(color: _rainfall == e.value ? Colors.white : AppColors.textPrimary, fontSize: 12),
-                          )).toList(),
+                      children: _rainfallOptions.entries
+                          .map(
+                            (e) => ChoiceChip(
+                              label: Text('${e.key} (${e.value.toInt()}mm)'),
+                              selected: _rainfall == e.value,
+                              onSelected: (_) =>
+                                  setState(() => _rainfall = e.value),
+                              selectedColor: AppColors.accent,
+                              labelStyle: TextStyle(
+                                color: _rainfall == e.value
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: _loading
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : const Icon(Icons.psychology_rounded),
-                        label: Text(_loading ? 'Running KNN + RF Model...' : s.cropRecoGetBtn),
+                        label: Text(
+                          _loading
+                              ? 'Preparing recommendations…'
+                              : s.cropRecoGetBtn,
+                        ),
                         onPressed: _loading ? null : _getRecommendations,
                       ),
                     ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 8),
-                      Text(_error!, style: const TextStyle(color: AppColors.priceDown, fontSize: 12)),
-                    ],
                   ],
                 ),
               ),
             ).animate().fadeIn(),
             if (_recommendations != null) ...[
               const SizedBox(height: 20),
-              if (_recommendations!.any((item) => item.isDemo)) const DemoDataNotice(),
-              Text(s.cropRecoResult, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
-                  .animate()
-                  .fadeIn(delay: 100.ms),
+              if (_recommendations!.any((item) => item.isDemo))
+                const DemoDataNotice(),
+              Text(
+                s.cropRecoResult,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ).animate().fadeIn(delay: 100.ms),
               const SizedBox(height: 8),
-              ..._recommendations!.asMap().entries.map((e) => _CropRecoCard(reco: e.value, rank: e.key + 1)
-                  .animate()
-                  .fadeIn(delay: Duration(milliseconds: 100 * e.key))
-                  .slideY(begin: 0.15)),
+              ..._recommendations!.asMap().entries.map(
+                (e) => _CropRecoCard(reco: e.value, rank: e.key + 1)
+                    .animate()
+                    .fadeIn(delay: Duration(milliseconds: 100 * e.key))
+                    .slideY(begin: 0.15),
+              ),
             ],
           ],
         ),
@@ -186,7 +287,6 @@ class _CropRecoScreenState extends ConsumerState<CropRecoScreen> {
     );
   }
 }
-
 
 class _CropRecoCard extends ConsumerWidget {
   final CropRecoResult reco;
@@ -196,8 +296,20 @@ class _CropRecoCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(appStringsProvider);
-    final colors = [AppColors.secondary, AppColors.primary, AppColors.accent, AppColors.primaryLight, AppColors.textSecondary];
-    final rankColors = [const Color(0xFFFFD700), const Color(0xFFC0C0C0), const Color(0xFFCD7F32), AppColors.primaryLight, AppColors.textSecondary];
+    final colors = [
+      AppColors.secondary,
+      AppColors.primary,
+      AppColors.accent,
+      AppColors.primaryLight,
+      AppColors.textSecondary,
+    ];
+    final rankColors = [
+      const Color(0xFFFFD700),
+      const Color(0xFFC0C0C0),
+      const Color(0xFFCD7F32),
+      AppColors.primaryLight,
+      AppColors.textSecondary,
+    ];
     final color = colors[rank - 1];
 
     return Card(
@@ -212,9 +324,13 @@ class _CropRecoCard extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: rankColors[rank - 1].withOpacity(0.15),
                 shape: BoxShape.circle,
-                border: Border.all(color: rankColors[rank - 1].withOpacity(0.5)),
+                border: Border.all(
+                  color: rankColors[rank - 1].withOpacity(0.5),
+                ),
               ),
-              child: Center(child: Text(reco.emoji, style: const TextStyle(fontSize: 22))),
+              child: Center(
+                child: Text(reco.emoji, style: const TextStyle(fontSize: 22)),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -223,17 +339,43 @@ class _CropRecoCard extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      Text(reco.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(
+                        reco.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-                        child: Text('#$rank ${s.cropMatch}', style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '#$rank ${s.cropMatch}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 3),
-                  Text(reco.description, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.3)),
+                  Text(
+                    reco.description,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      height: 1.3,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -248,8 +390,21 @@ class _CropRecoCard extends ConsumerWidget {
             const SizedBox(width: 8),
             Column(
               children: [
-                Text('${(reco.matchScore * 100).toInt()}%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-                Text(s.cropMatch.toLowerCase(), style: const TextStyle(fontSize: 9, color: AppColors.textSecondary)),
+                Text(
+                  '${(reco.matchScore * 100).toInt()}%',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                Text(
+                  s.cropMatch.toLowerCase(),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ],
@@ -271,7 +426,10 @@ class _Tag extends StatelessWidget {
       children: [
         Icon(icon, size: 11, color: AppColors.textSecondary),
         const SizedBox(width: 2),
-        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+        ),
       ],
     );
   }

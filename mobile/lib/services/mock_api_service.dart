@@ -310,7 +310,7 @@ class _CropDef {
 
 // ── Result models ─────────────────────────────────────────────────────────────
 
-enum ProfitDecision { sellNow, hold7, hold14 }
+enum ProfitDecision { sellNow, hold7, hold14, insufficientData }
 
 class ProfitAdvice {
   final ProfitDecision decision;
@@ -319,7 +319,9 @@ class ProfitAdvice {
   final String reason;
   final List<String> factors;
   final bool isDemo;
-  const ProfitAdvice({required this.decision, required this.currentPrice, required this.projectedPrice, required this.roi, required this.confidence, required this.reason, required this.factors, this.isDemo = false});
+  final DateTime? sourceDate;
+  final bool isEstimate;
+  const ProfitAdvice({required this.decision, required this.currentPrice, required this.projectedPrice, required this.roi, required this.confidence, required this.reason, required this.factors, this.isDemo = false, this.sourceDate, this.isEstimate = false});
 }
 
 class DemandResult {
@@ -329,7 +331,9 @@ class DemandResult {
   final List<double> weeklyDemand;
   final List<RegionDemand> regions;
   final bool isDemo;
-  const DemandResult({required this.commodity, required this.demandLevel, required this.demandIndex, required this.trend, required this.peakDays, required this.weeklyDemand, required this.regions, this.isDemo = false});
+  final DateTime? sourceDate;
+  final bool isEstimate;
+  const DemandResult({required this.commodity, required this.demandLevel, required this.demandIndex, required this.trend, required this.peakDays, required this.weeklyDemand, required this.regions, this.isDemo = false, this.sourceDate, this.isEstimate = false});
 }
 
 class RegionDemand {
@@ -342,7 +346,8 @@ class CropRecoResult {
   final String name, emoji, description, duration, waterReq;
   final double matchScore;
   final bool isDemo;
-  const CropRecoResult({required this.name, required this.emoji, required this.matchScore, required this.description, required this.duration, required this.waterReq, this.isDemo = false});
+  final bool isRuleBased;
+  const CropRecoResult({required this.name, required this.emoji, required this.matchScore, required this.description, required this.duration, required this.waterReq, this.isDemo = false, this.isRuleBased = false});
 }
 
 class VoiceResponse {

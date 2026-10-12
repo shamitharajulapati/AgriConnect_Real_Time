@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,17 +12,23 @@ import 'services/providers.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setPreferredOrientations(
-      [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
 
   // Load config (Supabase keys, ML URL, etc.)
   await AppConfig.load();
   final prefs = await SharedPreferences.getInstance();
   final savedLang = prefs.getString('language') ?? 'en';
+  final savedState = prefs.getString('state')?.trim() ?? '';
+  final savedDistrict = prefs.getString('district')?.trim() ?? '';
 
   // Initialize Supabase if keys are configured
   if (AppConfig.isSupabaseConfigured) {
@@ -52,10 +58,23 @@ void main() async {
     );
   };
 
-  runApp(ProviderScope(
-    overrides: [appLangProvider.overrideWith((ref) => savedLang)],
-    child: const AgriConnectApp(),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: [
+        appLangProvider.overrideWith((ref) => savedLang),
+        userLocationProvider.overrideWith(
+          (ref) => savedState.isEmpty ? 'Karnataka' : savedState,
+        ),
+        userDistrictProvider.overrideWith((ref) => savedDistrict),
+        marketFilterProvider.overrideWith(
+          (ref) => MarketFilter(
+            state: savedState.isEmpty ? 'All States' : savedState,
+          ),
+        ),
+      ],
+      child: const AgriConnectApp(),
+    ),
+  );
 }
 
 class AgriConnectApp extends StatefulWidget {

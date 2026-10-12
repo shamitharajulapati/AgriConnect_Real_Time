@@ -258,11 +258,7 @@ class _ErrorCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(appStringsProvider);
     return Card(child: Padding(padding: const EdgeInsets.all(24), child: Column(children: [
-    const Icon(Icons.error_outline, color: Colors.red, size: 40),
-    const SizedBox(height: 8),
-    Text(s.predFailed, style: const TextStyle(fontWeight: FontWeight.bold)),
-    const SizedBox(height: 8),
-    ElevatedButton(onPressed: onRetry, child: Text(s.retry)),
+    OutlinedButton(onPressed: onRetry, child: Text(s.retry)),
   ])));
   }
 }

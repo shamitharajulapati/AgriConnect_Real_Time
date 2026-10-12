@@ -49,6 +49,8 @@ final marketPricesProvider = FutureProvider.autoDispose<List<MarketPrice>>((
 
 // States already synced with the live Agmarknet feed this session — avoids re-syncing on every rebuild.
 final syncedStatesProvider = StateProvider<Set<String>>((ref) => {});
+// Timestamp of the last successful source fetch, kept per selected market filter.
+final marketSyncTimesProvider = StateProvider<Map<String, DateTime>>((ref) => {});
 
 // The signed-in farmer's home district, used to prioritize their local market.
 final userDistrictProvider = StateProvider<String>((ref) => '');
@@ -61,18 +63,10 @@ class PriceHistory {
 
 final priceHistoryProvider = FutureProvider.autoDispose
     .family<PriceHistory, String>((ref, commodity) async {
-      try {
-        final liveValues = await ref
-            .read(apiProvider)
-            .fetchPriceHistory(commodity);
-        if (liveValues.length >= 2 || !AppConfig.analyticsDemoFallback) {
-          return PriceHistory(liveValues);
-        }
-      } catch (_) {
-        if (!AppConfig.analyticsDemoFallback) rethrow;
-      }
-      final demoValues = await MockApiService().fetchPriceHistory(commodity);
-      return PriceHistory(demoValues, isDemo: true);
+      final liveValues = await ref
+          .read(apiProvider)
+          .fetchPriceHistory(commodity);
+      return PriceHistory(liveValues);
     });
 
 // All current market prices, unfiltered — used by the Analytics dashboard.

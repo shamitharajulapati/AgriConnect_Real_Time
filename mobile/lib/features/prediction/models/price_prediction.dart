@@ -22,6 +22,8 @@ class PricePrediction {
   final String unit;
   final DateTime generatedAt;
   final bool isDemo;
+  final DateTime? sourceDate;
+  final bool isEstimate;
 
   const PricePrediction({
     required this.commodity,
@@ -31,6 +33,8 @@ class PricePrediction {
     required this.unit,
     required this.generatedAt,
     this.isDemo = false,
+    this.sourceDate,
+    this.isEstimate = false,
   });
 
   static PricePrediction mock(String commodity, double basePrice) {

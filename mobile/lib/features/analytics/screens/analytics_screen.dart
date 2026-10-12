@@ -6,7 +6,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../services/providers.dart';
 import '../../../widgets/demo_data_notice.dart';
 import '../../market/models/market_price.dart';
-import 'dart:math';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -47,7 +46,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
           ),
           tabs: const [
             Tab(text: 'Prices'),
-            Tab(text: 'Earnings'),
+            Tab(text: 'Prices by Crop'),
             Tab(text: 'Market Share'),
             Tab(text: 'Compare'),
           ],
@@ -57,7 +56,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen>
         controller: _tabCtrl,
         children: const [
           _PriceTrendTab(),
-          _EarningsTab(),
+          _AveragePricesTab(),
           _MarketShareTab(),
           _CompareCropsTab(),
         ],
@@ -87,9 +86,10 @@ class _PriceTrendTab extends ConsumerWidget {
     final failed = histories.any((h) => h.hasError);
     final loaded = histories.every((h) => h.hasValue || h.hasError);
     final availableIndexes = loaded
-        ? List.generate(_crops.length, (i) => i)
-              .where((i) => (histories[i].value?.values ?? []).length >= 2)
-              .toList()
+        ? List.generate(
+            _crops.length,
+            (i) => i,
+          ).where((i) => (histories[i].value?.values ?? []).isNotEmpty).toList()
         : <int>[];
 
     return SingleChildScrollView(
@@ -105,12 +105,12 @@ class _PriceTrendTab extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '30-Day Price Trend',
+                    'Price Trend',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Tomato vs Onion vs Potato',
+                    'Tomato vs Onion vs Potato · averaged by observation date',
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
@@ -130,8 +130,17 @@ class _PriceTrendTab extends ConsumerWidget {
                         : !loaded
                         ? const Center(child: CircularProgressIndicator())
                         : availableIndexes.isEmpty
-                        ? const _ChartEmptyState(
-                            'Not enough historical price data yet.',
+                        ? const SizedBox.shrink()
+                        : availableIndexes.every(
+                            (i) => histories[i].value!.values.length < 2,
+                          )
+                        ? _SinglePricesCard(
+                            entries: availableIndexes
+                                .map((i) => (
+                                  _crops[i],
+                                  histories[i].value!.values.last,
+                                ))
+                                .toList(),
                           )
                         : LineChart(
                             LineChartData(
@@ -191,7 +200,7 @@ class _PriceTrendTab extends ConsumerWidget {
                                       color: _colors[i],
                                       barWidth: 2.5,
                                       isCurved: true,
-                                      dotData: const FlDotData(show: false),
+                                      dotData: const FlDotData(show: true),
                                     ),
                                   )
                                   .toList(),
@@ -222,128 +231,62 @@ class _PriceTrendTab extends ConsumerWidget {
   }
 }
 
-class _EarningsTab extends StatelessWidget {
-  const _EarningsTab();
+class _AveragePricesTab extends ConsumerWidget {
+  const _AveragePricesTab();
 
   @override
-  Widget build(BuildContext context) {
-    final rng = Random(99);
-    final monthlyEarnings = List.generate(
-      6,
-      (i) => 8000.0 + rng.nextDouble() * 12000,
-    );
-    final months = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'];
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Monthly Earnings',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const Text(
-                    'Illustrative projection — sales tracking not yet implemented',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Total: ₹${monthlyEarnings.reduce((a, b) => a + b).toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 200,
-                    child: BarChart(
-                      BarChartData(
-                        barGroups: monthlyEarnings
-                            .asMap()
-                            .entries
-                            .map(
-                              (e) => BarChartGroupData(
-                                x: e.key,
-                                barRods: [
-                                  BarChartRodData(
-                                    toY: e.value,
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        AppColors.primaryLight,
-                                        AppColors.primary,
-                                      ],
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                    ),
-                                    width: 32,
-                                    borderRadius: const BorderRadius.vertical(
-                                      top: Radius.circular(6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                            .toList(),
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          getDrawingHorizontalLine: (_) => const FlLine(
-                            color: Color(0xFFEEEEEE),
-                            strokeWidth: 1,
-                          ),
-                        ),
-                        titlesData: FlTitlesData(
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (v, _) => Text(
-                                months[v.toInt()],
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 55,
-                              getTitlesWidget: (v, _) => Text(
-                                '₹${(v / 1000).toInt()}K',
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        borderData: FlBorderData(show: false),
-                      ),
-                    ),
-                  ),
-                ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prices = ref.watch(analyticsMarketPricesProvider);
+    return prices.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: IconButton(
+          tooltip: 'Refresh market prices',
+          onPressed: () => ref.invalidate(analyticsMarketPricesProvider),
+          icon: const Icon(Icons.refresh),
+        ),
+      ),
+      data: (rows) {
+        final byCrop = <String, List<MarketPrice>>{};
+        for (final row in rows) {
+          (byCrop[row.commodity] ??= []).add(row);
+        }
+        final entries = byCrop.entries.toList()
+          ..sort((a, b) => a.key.compareTo(b.key));
+        if (entries.isEmpty) return const SizedBox.shrink();
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Average modal prices from your market records',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             ),
-          ).animate().fadeIn(),
-        ],
-      ),
+            ...entries.map((entry) {
+              final values = entry.value.map((p) => p.modalPrice).toList();
+              final average = values.reduce((a, b) => a + b) / values.length;
+              final low = values.reduce((a, b) => a < b ? a : b);
+              final high = values.reduce((a, b) => a > b ? a : b);
+              return Card(
+                child: ListTile(
+                  title: Text(entry.key),
+                  subtitle: Text(
+                    '${entry.value.length} markets · ₹${low.toStringAsFixed(0)}–₹${high.toStringAsFixed(0)} / quintal',
+                  ),
+                  trailing: Text(
+                    '₹${average.toStringAsFixed(0)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 }
@@ -470,9 +413,10 @@ class _CompareCropsTab extends ConsumerWidget {
     final failed = histories.any((h) => h.hasError);
     final loaded = histories.every((h) => h.hasValue || h.hasError);
     final availableIndexes = loaded
-        ? List.generate(_crops.length, (i) => i)
-              .where((i) => (histories[i].value?.values ?? []).length >= 2)
-              .toList()
+        ? List.generate(
+            _crops.length,
+            (i) => i,
+          ).where((i) => (histories[i].value?.values ?? []).isNotEmpty).toList()
         : <int>[];
 
     return SingleChildScrollView(
@@ -488,7 +432,7 @@ class _CompareCropsTab extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Current vs 30 Days Ago',
+                    'Price Comparison',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 16),
@@ -505,8 +449,17 @@ class _CompareCropsTab extends ConsumerWidget {
                         : !loaded
                         ? const Center(child: CircularProgressIndicator())
                         : availableIndexes.isEmpty
-                        ? const _ChartEmptyState(
-                            'Not enough historical price data to compare yet.',
+                        ? const SizedBox.shrink()
+                        : availableIndexes.every(
+                            (i) => histories[i].value!.values.length < 2,
+                          )
+                        ? _SinglePricesCard(
+                            entries: availableIndexes
+                                .map((i) => (
+                                  _crops[i],
+                                  histories[i].value!.values.last,
+                                ))
+                                .toList(),
                           )
                         : Builder(
                             builder: (context) {
@@ -514,7 +467,11 @@ class _CompareCropsTab extends ConsumerWidget {
                               final previous = <double>[];
                               for (final i in availableIndexes) {
                                 final v = histories[i].value!;
-                                previous.add(v.values.first);
+                                previous.add(
+                                  v.values.length > 1
+                                      ? v.values.first
+                                      : double.nan,
+                                );
                                 current.add(v.values.last);
                               }
                               return BarChart(
@@ -536,16 +493,17 @@ class _CompareCropsTab extends ConsumerWidget {
                                                     top: Radius.circular(4),
                                                   ),
                                             ),
-                                            BarChartRodData(
-                                              toY: previous[e.key],
-                                              color: AppColors.primaryLight
-                                                  .withOpacity(0.5),
-                                              width: 16,
-                                              borderRadius:
-                                                  const BorderRadius.vertical(
-                                                    top: Radius.circular(4),
-                                                  ),
-                                            ),
+                                            if (previous[e.key].isFinite)
+                                              BarChartRodData(
+                                                toY: previous[e.key],
+                                                color: AppColors.primaryLight
+                                                    .withOpacity(0.5),
+                                                width: 16,
+                                                borderRadius:
+                                                    const BorderRadius.vertical(
+                                                      top: Radius.circular(4),
+                                                    ),
+                                              ),
                                           ],
                                         ),
                                       )
@@ -610,11 +568,15 @@ class _CompareCropsTab extends ConsumerWidget {
                   Row(
                     children: [
                       _Legend(AppColors.primary, 'Current'),
-                      const SizedBox(width: 16),
-                      _Legend(
-                        AppColors.primaryLight.withOpacity(0.5),
-                        '30 Days Ago',
-                      ),
+                      if (histories.any(
+                        (h) => (h.value?.values.length ?? 0) > 1,
+                      )) ...[
+                        const SizedBox(width: 16),
+                        _Legend(
+                          AppColors.primaryLight.withOpacity(0.5),
+                          'Earlier',
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -814,13 +776,40 @@ class _HistoryErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Text('Unable to load live price history.'),
-        const SizedBox(height: 8),
-        TextButton(onPressed: onRetry, child: const Text('Retry')),
-      ],
+    child: IconButton(
+      tooltip: 'Refresh prices',
+      onPressed: onRetry,
+      icon: const Icon(Icons.refresh),
     ),
+  );
+}
+
+class _SinglePricesCard extends StatelessWidget {
+  final List<(String, double)> entries;
+  const _SinglePricesCard({required this.entries});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: entries
+        .map(
+          (entry) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(entry.$1),
+                Text(
+                  '₹${entry.$2.toStringAsFixed(0)} / quintal',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+        .toList(),
   );
 }

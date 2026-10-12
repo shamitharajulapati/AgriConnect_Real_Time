@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,14 +19,25 @@ class MarketScreen extends ConsumerStatefulWidget {
 
 class _MarketScreenState extends ConsumerState<MarketScreen> {
   bool _syncing = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncIfNeeded());
+    _refreshTimer = Timer.periodic(const Duration(minutes: 15), (_) {
+      _refreshMarketPrices();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _syncIfNeeded() async {
+    if (_syncing) return;
     final state = ref.read(marketFilterProvider).state;
     final commodity = ref.read(marketFilterProvider).commodity;
     final synced = ref.read(syncedStatesProvider);
@@ -36,21 +49,21 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
       final count = await ref
           .read(apiProvider)
           .syncPricesForState(state, commodity: commodity);
+      if (count <= 0)
+        throw StateError('The source returned no market records.');
       ref.read(syncedStatesProvider.notifier).state = {...synced, syncKey};
+      ref.read(marketSyncTimesProvider.notifier).state = {
+        ...ref.read(marketSyncTimesProvider),
+        syncKey: DateTime.now(),
+      };
       if (mounted) {
         setState(() => _syncing = false);
-        if (count > 0) ref.invalidate(marketPricesProvider);
+        ref.invalidate(marketPricesProvider);
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
       if (!mounted) return;
+      debugPrint('Market refresh failed: $error\n$stackTrace');
       setState(() => _syncing = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Live refresh is unavailable. Saved prices remain visible with their data date.',
-          ),
-        ),
-      );
     }
   }
 
@@ -89,24 +102,27 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: [
-                _PulsingDot(),
+                const Icon(Icons.circle, size: 8, color: Colors.white70),
                 const SizedBox(width: 6),
                 Text(
-                  demoMode ? 'DEMO SAMPLE DATA' : _marketFreshness(prices),
+                  demoMode ? 'DEMO MARKET DATA' : 'AGMARKNET MARKET DATA',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  _lastUpdated(prices),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 11,
+                if (_syncing) ...[
+                  const Spacer(),
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -194,62 +210,25 @@ class _MarketScreenState extends ConsumerState<MarketScreen> {
           ),
           Expanded(
             child: prices.when(
-              data: (list) => list.isEmpty
-                  ? _EmptyState()
-                  : RefreshIndicator(
-                      color: AppColors.primary,
-                      onRefresh: _refreshMarketPrices,
-                      child: _buildSectionedList(context, ref, list, s),
-                    ),
+              data: (list) {
+                // Show the latest available record per market even when the
+                // source has not published a new arrival today. A failed
+                // refresh must not make the entire market screen disappear.
+                return list.isEmpty
+                    ? _EmptyState()
+                    : RefreshIndicator(
+                        color: AppColors.primary,
+                        onRefresh: _refreshMarketPrices,
+                        child: _buildSectionedList(context, ref, list, s),
+                      );
+              },
               loading: () => _ShimmerList(),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off,
-                      size: 48,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      s.mktFailed,
-                      style: const TextStyle(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: () => ref.invalidate(marketPricesProvider),
-                      child: Text(s.retry),
-                    ),
-                  ],
-                ),
-              ),
+              error: (e, _) => _EmptyState(),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _lastUpdated(AsyncValue<List<MarketPrice>> prices) {
-    final data = prices.asData?.value;
-    if (data == null || data.isEmpty) return 'No market date available';
-    final latest = data
-        .map((price) => price.date)
-        .reduce((a, b) => a.isAfter(b) ? a : b);
-    return 'Data date: ${latest.toIso8601String().split('T').first}';
-  }
-
-  String _marketFreshness(AsyncValue<List<MarketPrice>> prices) {
-    if (_syncing) return 'Refreshing Agmarknet…';
-    final data = prices.asData?.value;
-    if (data == null) return 'Loading market records…';
-    if (data.isEmpty) return 'No market records';
-    final latest = data
-        .map((price) => price.date)
-        .reduce((a, b) => a.isAfter(b) ? a : b);
-    final age = DateTime.now().difference(latest).inDays;
-    return age > 2 ? 'STALE MARKET DATA' : 'AGMARKNET DAILY DATA';
   }
 
   Widget _buildSectionedList(
@@ -457,13 +436,11 @@ class _PriceCard extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _MiniPrice(s.mktMin, price.minPrice, AppColors.priceDown),
-                  const Expanded(child: SizedBox()),
                   _MiniPrice(s.mktModal, price.modalPrice, AppColors.primary),
-                  const Expanded(child: SizedBox()),
                   _MiniPrice(s.mktMax, price.maxPrice, AppColors.priceUp),
-                  const Spacer(),
                   if (delta != null) ...[
                     Icon(
                       isUp ? Icons.arrow_upward : Icons.arrow_downward,
@@ -562,45 +539,3 @@ class _EmptyState extends ConsumerWidget {
   }
 }
 
-class _PulsingDot extends StatefulWidget {
-  @override
-  State<_PulsingDot> createState() => _PulsingDotState();
-}
-
-class _PulsingDotState extends State<_PulsingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _c,
-    builder: (_, __) => Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.5 + _c.value * 0.5),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.white.withValues(alpha: _c.value * 0.5),
-            blurRadius: _c.value * 6,
-          ),
-        ],
-      ),
-    ),
-  );
-}

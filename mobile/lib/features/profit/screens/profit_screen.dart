@@ -123,6 +123,7 @@ class _DecisionBanner extends ConsumerWidget {
       case ProfitDecision.sellNow: return _Cfg('🔴  ${s.profSellNow}', Icons.sell_rounded, AppColors.priceDown);
       case ProfitDecision.hold7:  return _Cfg('🟡  ${s.profHold7}', Icons.hourglass_empty, AppColors.secondary);
       case ProfitDecision.hold14: return _Cfg('🟢  ${s.profHold14}', Icons.hourglass_full, AppColors.primary);
+      case ProfitDecision.insufficientData: return const _Cfg('Insufficient history', Icons.info_outline, AppColors.textSecondary);
     }
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_config.dart';
@@ -28,11 +29,122 @@ class ApiService {
   // Use mock when Supabase not configured OR when AUTH_MOCK flag is set
   bool get _useMock => !AppConfig.isSupabaseConfigured || AppConfig.isAuthMock;
 
+  String _commodityKey(String value) => value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z]'), '')
+      .replaceAll('chillies', 'chilli')
+      .replaceAll('chilis', 'chilli')
+      .replaceAll('potatoes', 'potato')
+      .replaceAll('tomatoes', 'tomato');
+
   Options get _mlOptions {
     final session = _db.auth.currentSession;
     if (session == null)
       throw StateError('Sign in is required to use this service.');
     return Options(headers: {'Authorization': 'Bearer ${session.accessToken}'});
+  }
+
+  Future<List<Map<String, dynamic>>> _storedMarketRows(
+    String commodity, {
+    String? state,
+  }) async {
+    var query = _db
+        .from('market_prices')
+        .select('commodity,state,district,market,modal_price,arrival_date,unit')
+        ;
+    if (state != null && state != 'All States')
+      query = query.eq('state', state);
+    var rows = List<Map<String, dynamic>>.from(
+      (await query.order('arrival_date', ascending: false).limit(5000))
+          .where((row) => _commodityKey('${row['commodity']}') == _commodityKey(commodity))
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(),
+    );
+    if (rows.isEmpty && state != null && state != 'All States') {
+      final allRows = await _db
+          .from('market_prices')
+          .select(
+            'commodity,state,district,market,modal_price,arrival_date,unit',
+          )
+          .order('arrival_date', ascending: false)
+          .limit(5000);
+      rows = List<Map<String, dynamic>>.from(allRows)
+          .where((row) => _commodityKey('${row['commodity']}') == _commodityKey(commodity))
+          .toList();
+    }
+    return rows;
+  }
+
+  PricePrediction _estimateFromRows(
+    String commodity,
+    String state,
+    int days,
+    List<Map<String, dynamic>> rows,
+  ) {
+    final byDate = <String, List<double>>{};
+    for (final row in rows) {
+      final date = row['arrival_date']?.toString().substring(0, 10);
+      final price = (row['modal_price'] as num?)?.toDouble();
+      if (date != null && price != null && price > 0) {
+        (byDate[date] ??= []).add(price);
+      }
+    }
+    final dates = byDate.keys.toList()..sort();
+    if (dates.isEmpty) throw StateError('No market prices are available.');
+    final series = dates
+        .map(
+          (d) => (
+            DateTime.parse(d),
+            byDate[d]!.reduce((a, b) => a + b) / byDate[d]!.length,
+          ),
+        )
+        .toList();
+    final latest = series.last.$2;
+    final xMean =
+        series
+            .map((p) => p.$1.difference(series.first.$1).inDays.toDouble())
+            .reduce((a, b) => a + b) /
+        series.length;
+    final yMean =
+        series.map((p) => p.$2).reduce((a, b) => a + b) / series.length;
+    final denominator = series.fold<double>(
+      0,
+      (sum, p) =>
+          sum + math.pow(p.$1.difference(series.first.$1).inDays - xMean, 2),
+    );
+    final slope = series.length < 2 || denominator == 0
+        ? 0.0
+        : series.fold<double>(
+                0,
+                (sum, p) =>
+                    sum +
+                    (p.$1.difference(series.first.$1).inDays - xMean) *
+                        (p.$2 - yMean),
+              ) /
+              denominator;
+    final dailyRate = (slope / latest).clamp(-0.02, 0.02);
+    final points = List.generate(days, (i) {
+      final price = latest * math.pow(1 + dailyRate, i + 1);
+      final band = math.min(0.25, 0.08 + (i + 1) * 0.005);
+      return PriceForecastPoint(
+        date: DateTime.now().add(Duration(days: i + 1)),
+        price: price.toDouble(),
+        lowerBound: price * (1 - band),
+        upperBound: price * (1 + band),
+      );
+    });
+    return PricePrediction(
+      commodity: commodity,
+      market: state,
+      points: points,
+      confidence: series.length > 1 ? 0.45 : 0.20,
+      unit: rows.first['unit'] == null
+          ? 'INR/quintal'
+          : '${rows.first['unit']}',
+      generatedAt: DateTime.now(),
+      sourceDate: series.last.$1,
+      isEstimate: true,
+    );
   }
 
   // ── Market Prices ─────────────────────────────────────────────────────────
@@ -53,19 +165,22 @@ class ApiService {
       var query = _db.from('market_prices').select();
       if (state != null && state != 'All States')
         query = query.eq('state', state);
-      if (commodity != null && commodity != 'All')
-        query = query.eq('commodity', commodity);
 
       // The table carries one row per (commodity, market) per arrival date.
       // Keep enough history to return the latest row per market and its prior
       // price, which is needed to calculate real price changes and spike alerts.
       final data = await query
           .order('arrival_date', ascending: false)
-          .limit(limit * 10);
+          .limit(math.max(limit * 10, 1000));
       final seen = <String>{};
       final result = <MarketPrice>[];
       final previousPrices = <String, double>{};
       for (final row in (data as List)) {
+        if (commodity != null &&
+            commodity != 'All' &&
+            _commodityKey('${row['commodity']}') != _commodityKey(commodity)) {
+          continue;
+        }
         final key = '${row['commodity']}_${row['state']}_${row['market']}';
         final modalPrice = (row['modal_price'] as num).toDouble();
         if (!seen.add(key)) {
@@ -130,20 +245,27 @@ class ApiService {
       return MockApiService().fetchPriceHistory(commodity, days: days);
 
     try {
-      final cutoff = DateTime.now()
-          .subtract(Duration(days: days))
-          .toIso8601String()
-          .split('T')[0];
       final data = await _db
           .from('market_prices')
-          .select('modal_price, arrival_date')
-          .eq('commodity', commodity)
-          .gte('arrival_date', cutoff)
-          .order('arrival_date');
-
-      return (data as List)
-          .map((r) => (r['modal_price'] as num).toDouble())
-          .toList();
+          .select('commodity, modal_price, arrival_date')
+          .order('arrival_date', ascending: false)
+          .limit(5000);
+      final byDate = <String, List<double>>{};
+      for (final row in (data as List)) {
+        if (_commodityKey('${row['commodity']}') != _commodityKey(commodity)) {
+          continue;
+        }
+        (byDate[row['arrival_date'] as String] ??= <double>[]).add(
+          (row['modal_price'] as num).toDouble(),
+        );
+      }
+      final dates = byDate.keys.toList()..sort();
+      return dates.skip(dates.length > days ? dates.length - days : 0).map((
+        date,
+      ) {
+        final values = byDate[date]!;
+        return values.reduce((a, b) => a + b) / values.length;
+      }).toList();
     } catch (_) {
       rethrow;
     }
@@ -159,40 +281,11 @@ class ApiService {
     if (_useMock) {
       return MockApiService().fetchPrediction(commodity, state, days);
     }
-    if (!AppConfig.isMlConfigured)
-      throw StateError('ML service is not configured.');
-
     try {
-      // Check cache in Supabase first
+      if (!AppConfig.isMlConfigured)
+        throw StateError('ML service is not configured.');
       final cacheId =
           '${commodity}_${state}_${days}_${DateTime.now().toIso8601String().split('T')[0]}';
-      final cached = await _db
-          .from('price_predictions')
-          .select()
-          .eq('id', cacheId)
-          .maybeSingle();
-
-      if (cached != null) {
-        final pts = (cached['points'] as List)
-            .map(
-              (p) => PriceForecastPoint(
-                date: DateTime.parse(p['date']),
-                price: (p['price'] as num).toDouble(),
-                lowerBound: (p['lowerBound'] as num).toDouble(),
-                upperBound: (p['upperBound'] as num).toDouble(),
-              ),
-            )
-            .toList();
-        return PricePrediction(
-          commodity: commodity,
-          market: state,
-          points: pts,
-          confidence: (cached['confidence'] as num).toDouble(),
-          unit: cached['unit'] ?? 'INR/quintal',
-          generatedAt: DateTime.parse(cached['generated_at']),
-        );
-      }
-
       // Call ML service
       final resp = await _dio.post(
         '${AppConfig.mlServiceUrl}/predict',
@@ -250,7 +343,12 @@ class ApiService {
       if (AppConfig.mlDemoFallback) {
         return MockApiService().fetchPrediction(commodity, state, days);
       }
-      rethrow;
+      return _estimateFromRows(
+        commodity,
+        state,
+        days,
+        await _storedMarketRows(commodity, state: state),
+      );
     }
   }
 
@@ -260,10 +358,9 @@ class ApiService {
     if (_useMock) {
       return MockApiService().fetchProfitAdvice(commodity);
     }
-    if (!AppConfig.isMlConfigured)
-      throw StateError('ML service is not configured.');
-
     try {
+      if (!AppConfig.isMlConfigured)
+        throw StateError('ML service is not configured.');
       final resp = await _dio.post(
         '${AppConfig.mlServiceUrl}/profit',
         data: {'commodity': commodity},
@@ -285,7 +382,36 @@ class ApiService {
     } catch (_) {
       if (AppConfig.mlDemoFallback)
         return MockApiService().fetchProfitAdvice(commodity);
-      rethrow;
+      final rows = await _storedMarketRows(commodity);
+      final forecast = _estimateFromRows(commodity, 'All States', 14, rows);
+      final byDate = <String, List<double>>{};
+      for (final row in rows) {
+        final day = row['arrival_date']?.toString().substring(0, 10);
+        final price = (row['modal_price'] as num?)?.toDouble();
+        if (day != null && price != null) (byDate[day] ??= []).add(price);
+      }
+      final latestDay = (byDate.keys.toList()..sort()).last;
+      final current =
+          byDate[latestDay]!.reduce((a, b) => a + b) /
+          byDate[latestDay]!.length;
+      final projected = forecast.points[6].price;
+      final roi = (projected - current) / current * 100;
+      return ProfitAdvice(
+        decision: roi > 3 ? ProfitDecision.hold7 : ProfitDecision.sellNow,
+        currentPrice: current,
+        projectedPrice: projected,
+        roi: roi,
+        confidence: (forecast.confidence * 100).round(),
+        reason: roi > 3
+            ? 'The available price trend points upward.'
+            : 'The available price trend is steady; compare current offers before selling.',
+        factors: [
+          'Calculated from recorded market prices',
+          'Estimate based on the available price history',
+        ],
+        sourceDate: forecast.sourceDate,
+        isEstimate: true,
+      );
     }
   }
 
@@ -298,10 +424,9 @@ class ApiService {
     if (_useMock) {
       return MockApiService().fetchDemand(commodity);
     }
-    if (!AppConfig.isMlConfigured)
-      throw StateError('ML service is not configured.');
-
     try {
+      if (!AppConfig.isMlConfigured)
+        throw StateError('ML service is not configured.');
       final resp = await _dio.post(
         '${AppConfig.mlServiceUrl}/demand',
         data: {'commodity': commodity, 'state': state},
@@ -326,7 +451,59 @@ class ApiService {
     } catch (_) {
       if (AppConfig.mlDemoFallback)
         return MockApiService().fetchDemand(commodity);
-      rethrow;
+      final rows = await _storedMarketRows(commodity, state: state);
+      if (rows.isEmpty) throw StateError('No market activity is available.');
+      final byDate = <String, Set<String>>{};
+      final regions = <String, Set<String>>{};
+      for (final row in rows) {
+        final day = row['arrival_date']?.toString().substring(0, 10);
+        final market = row['market']?.toString() ?? '';
+        if (day == null || market.isEmpty) continue;
+        (byDate[day] ??= <String>{}).add(market);
+      }
+      final latestDay = (byDate.keys.toList()..sort()).last;
+      for (final row in rows.where(
+        (r) => r['arrival_date'].toString().startsWith(latestDay),
+      )) {
+        final region =
+            row['district']?.toString() ?? row['state']?.toString() ?? '';
+        final market = row['market']?.toString() ?? '';
+        if (region.isNotEmpty && market.isNotEmpty)
+          (regions[region] ??= <String>{}).add(market);
+      }
+      final maxMarkets = byDate.values
+          .map((v) => v.length)
+          .fold<int>(1, math.max);
+      final index = (byDate[latestDay]!.length / maxMarkets).clamp(0.0, 1.0);
+      final rankedRegions = regions.entries.toList()
+        ..sort((a, b) => b.value.length.compareTo(a.value.length));
+      return DemandResult(
+        commodity: commodity,
+        demandLevel: index >= 0.7
+            ? 'HIGH'
+            : index >= 0.4
+            ? 'MEDIUM'
+            : 'LOW',
+        demandIndex: index,
+        trend: 'STABLE',
+        peakDays: 7,
+        weeklyDemand: List<double>.filled(7, index),
+        regions: rankedRegions
+            .take(5)
+            .map(
+              (e) => RegionDemand(
+                e.key,
+                (e.value.length /
+                        (rankedRegions.isEmpty
+                            ? 1
+                            : rankedRegions.first.value.length))
+                    .clamp(0.0, 1.0),
+              ),
+            )
+            .toList(),
+        sourceDate: DateTime.parse(latestDay),
+        isEstimate: true,
+      );
     }
   }
 
@@ -622,10 +799,9 @@ class ApiService {
         rainfall: rainfall,
       );
     }
-    if (!AppConfig.isMlConfigured)
-      throw StateError('ML service is not configured.');
-
     try {
+      if (!AppConfig.isMlConfigured)
+        throw StateError('ML service is not configured.');
       final resp = await _dio.post(
         '${AppConfig.mlServiceUrl}/crop-reco',
         data: {
@@ -662,7 +838,27 @@ class ApiService {
           rainfall: rainfall,
         );
       }
-      rethrow;
+      // Recommendation rules are local and deterministic; they need no
+      // network or historical price data, so they remain usable offline.
+      final results = await MockApiService().fetchCropRecommendation(
+        soilType: soilType,
+        season: season,
+        temperature: temperature,
+        rainfall: rainfall,
+      );
+      return results
+          .map(
+            (r) => CropRecoResult(
+              name: r.name,
+              emoji: r.emoji,
+              matchScore: r.matchScore,
+              description: r.description,
+              duration: r.duration,
+              waterReq: r.waterReq,
+              isRuleBased: true,
+            ),
+          )
+          .toList();
     }
   }
 
@@ -815,6 +1011,13 @@ class ApiService {
         options: _mlOptions,
       );
 
+      final latestArrival = DateTime.tryParse(
+        resp.data['latestArrivalDate']?.toString() ?? '',
+      );
+      if (latestArrival == null ||
+          DateTime.now().difference(latestArrival) > const Duration(days: 3)) {
+        throw StateError('Market source has no recent observation.');
+      }
       return (resp.data['records'] as num?)?.toInt() ?? 0;
     } catch (_) {
       rethrow;
