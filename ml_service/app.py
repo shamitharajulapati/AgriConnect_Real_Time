@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import os
 import re
 import requests
+from datetime import datetime
 
 app = Flask(__name__)
 SECRET = os.getenv('ML_SERVICE_SECRET')
@@ -132,6 +133,14 @@ def market_prices():
         if not rows:
             return jsonify({'error': 'Agmarknet returned no valid market records.'}), 502
 
+        latest_arrival = max(row['arrival_date'] for row in rows)
+        try:
+            latest_day = datetime.strptime(latest_arrival, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Agmarknet returned an invalid observation date.'}), 502
+        if (datetime.now().date() - latest_day).days > 3:
+            return jsonify({'error': 'Agmarknet has not published a recent observation for this filter.'}), 502
+
         saved = requests.post(
             f'{supabase_url}/rest/v1/market_prices?on_conflict=id',
             json=rows,
@@ -144,7 +153,7 @@ def market_prices():
             timeout=20,
         )
         saved.raise_for_status()
-        return jsonify({'records': len(rows), 'latestArrivalDate': max(r['arrival_date'] for r in rows)})
+        return jsonify({'records': len(rows), 'latestArrivalDate': latest_arrival})
     except (requests.RequestException, ValueError):
         return jsonify({'error': 'Live market source or database write failed.'}), 502
 

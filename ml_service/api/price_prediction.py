@@ -60,25 +60,20 @@ def predict(params: dict) -> dict:
         raise RuntimeError(f'No valid Agmarknet price history is available for {commodity}.')
 
     latest_date = max(by_date)
-    age_days = (datetime.now().date() - latest_date).days
-    if age_days > 7:
-        raise RuntimeError(f'Latest Agmarknet price for {commodity} is {age_days} days old; live forecast paused.')
-
+    # Use the observations that are actually stored. A source can go quiet for
+    # days; that should not make the module disappear. With one observed date
+    # this is a reference estimate, not a learned trend.
     series = sorted((day, float(np.mean(prices))) for day, prices in by_date.items())[-30:]
     current_price = series[-1][1]
-    if len(series) >= 2:
-        x = np.array([(day - series[0][0]).days for day, _ in series], dtype=float)
-        y = np.array([price for _, price in series], dtype=float)
-        slope = float(np.polyfit(x, y, 1)[0]) if np.ptp(x) > 0 else 0.0
-        daily_change = float(np.clip(slope / current_price, -0.02, 0.02))
-        changes = []
-        for (day_a, price_a), (day_b, price_b) in zip(series, series[1:]):
-            gap = max(1, (day_b - day_a).days)
-            changes.append((price_b / price_a) ** (1 / gap) - 1)
-        volatility = float(np.std(changes)) if len(changes) > 1 else 0.015
-    else:
-        daily_change = 0.0
-        volatility = 0.02
+    x = np.array([(day - series[0][0]).days for day, _ in series], dtype=float)
+    y = np.array([price for _, price in series], dtype=float)
+    slope = float(np.polyfit(x, y, 1)[0]) if len(series) > 1 and np.ptp(x) > 0 else 0.0
+    daily_change = float(np.clip(slope / current_price, -0.02, 0.02))
+    changes = []
+    for (day_a, price_a), (day_b, price_b) in zip(series, series[1:]):
+        gap = max(1, (day_b - day_a).days)
+        changes.append((price_b / price_a) ** (1 / gap) - 1)
+    volatility = float(np.std(changes)) if len(changes) > 1 else 0.02
 
     points = []
     for index in range(1, horizon + 1):
@@ -92,11 +87,12 @@ def predict(params: dict) -> dict:
             'upperBound': round(float(price * (1 + uncertainty)), 2),
         })
 
-    confidence = min(0.82, 0.48 + len(series) * 0.012)
+    confidence = min(0.82, 0.48 + len(series) * 0.012) if len(series) > 1 else 0.20
     return {
         'commodity': commodity, 'state': forecast_market, 'points': points,
         'currentPrice': round(current_price, 2),
         'confidence': round(confidence, 3), 'unit': 'INR/quintal',
         'dataSource': 'Agmarknet', 'lastObservedDate': latest_date.isoformat(),
+        'estimateOnly': len(series) < 2,
         'generatedAt': datetime.now().isoformat(),
     }
