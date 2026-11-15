@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/constants/app_config.dart';
 import '../core/l10n/app_strings.dart';
 import 'supabase_service.dart';
@@ -20,6 +21,39 @@ final appStringsProvider = Provider<AppStrings>(
 // Single API provider — auto-selects Supabase or Mock
 final apiProvider = Provider((ref) => ApiService());
 
+// Refresh data-backed screens after a cloud sync changes market_prices.
+// A trailing debounce coalesces the many row events from one bulk sync.
+final marketPricesRealtimeProvider = StreamProvider.autoDispose<int>((ref) {
+  if (!AppConfig.isSupabaseConfigured || AppConfig.isAuthMock) {
+    return const Stream<int>.empty();
+  }
+
+  final events = StreamController<int>();
+  var revision = 0;
+  Timer? debounce;
+  final channel = Supabase.instance.client
+      .channel('market-prices-refresh')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'market_prices',
+        callback: (_) {
+          debounce?.cancel();
+          debounce = Timer(const Duration(seconds: 60), () {
+            if (!events.isClosed) events.add(++revision);
+          });
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() {
+    debounce?.cancel();
+    unawaited(channel.unsubscribe());
+    unawaited(events.close());
+  });
+  return events.stream;
+});
+
 // ── Market ────────────────────────────────────────────────────────────────────
 
 final marketFilterProvider = StateProvider((ref) => MarketFilter());
@@ -37,6 +71,7 @@ class MarketFilter {
 final marketPricesProvider = FutureProvider.autoDispose<List<MarketPrice>>((
   ref,
 ) {
+  ref.watch(marketPricesRealtimeProvider);
   final filter = ref.watch(marketFilterProvider);
   return ref
       .read(apiProvider)
@@ -63,6 +98,7 @@ class PriceHistory {
 
 final priceHistoryProvider = FutureProvider.autoDispose
     .family<PriceHistory, String>((ref, commodity) async {
+      ref.watch(marketPricesRealtimeProvider);
       final liveValues = await ref
           .read(apiProvider)
           .fetchPriceHistory(commodity);
@@ -72,6 +108,7 @@ final priceHistoryProvider = FutureProvider.autoDispose
 // All current market prices, unfiltered — used by the Analytics dashboard.
 final analyticsMarketPricesProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) {
+      ref.watch(marketPricesRealtimeProvider);
       return ref.read(apiProvider).fetchMarketPrices(limit: 200);
     });
 
@@ -81,6 +118,7 @@ final selectedCommodityProvider = StateProvider((ref) => 'Tomato');
 final selectedHorizonProvider = StateProvider((ref) => 7);
 
 final predictionProvider = FutureProvider.autoDispose<PricePrediction>((ref) {
+  ref.watch(marketPricesRealtimeProvider);
   final commodity = ref.watch(selectedCommodityProvider);
   final days = ref.watch(selectedHorizonProvider);
   final location = ref.watch(userLocationProvider);
@@ -92,6 +130,7 @@ final predictionProvider = FutureProvider.autoDispose<PricePrediction>((ref) {
 final profitCommodityProvider = StateProvider((ref) => 'Tomato');
 
 final profitAdviceProvider = FutureProvider.autoDispose<ProfitAdvice>((ref) {
+  ref.watch(marketPricesRealtimeProvider);
   final commodity = ref.watch(profitCommodityProvider);
   return ref.read(apiProvider).fetchProfitAdvice(commodity);
 });
@@ -101,6 +140,7 @@ final profitAdviceProvider = FutureProvider.autoDispose<ProfitAdvice>((ref) {
 final demandCropProvider = StateProvider((ref) => 'Tomato');
 
 final demandProvider = FutureProvider.autoDispose<DemandResult>((ref) {
+  ref.watch(marketPricesRealtimeProvider);
   final crop = ref.watch(demandCropProvider);
   final location = ref.watch(userLocationProvider);
   return ref.read(apiProvider).fetchDemand(crop, state: location);
@@ -110,7 +150,11 @@ final demandProvider = FutureProvider.autoDispose<DemandResult>((ref) {
 
 final alertsProvider =
     StateNotifierProvider<AlertsNotifier, AsyncValue<List<CropAlert>>>((ref) {
-      return AlertsNotifier(ref.read(apiProvider));
+      final notifier = AlertsNotifier(ref.read(apiProvider));
+      ref.listen<AsyncValue<int>>(marketPricesRealtimeProvider, (_, next) {
+        if (next.hasValue) unawaited(notifier.refresh());
+      });
+      return notifier;
     });
 
 class AlertsNotifier extends StateNotifier<AsyncValue<List<CropAlert>>> {
