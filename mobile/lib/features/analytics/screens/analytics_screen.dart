@@ -589,23 +589,6 @@ class _CompareCropsTab extends ConsumerWidget {
   }
 }
 
-class _ChartEmptyState extends StatelessWidget {
-  const _ChartEmptyState(this.message);
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Text(
-        message,
-        textAlign: TextAlign.center,
-        style: const TextStyle(color: AppColors.textSecondary),
-      ),
-    ),
-  );
-}
-
 class _SummaryCards extends ConsumerWidget {
   const _SummaryCards();
 
