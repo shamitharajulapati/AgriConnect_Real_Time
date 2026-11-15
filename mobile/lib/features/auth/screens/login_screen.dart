@@ -217,7 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         alignment: WrapAlignment.center,
                         children: [
                           ['English','en'],['हिंदी','hi'],['తెలుగు','te'],['தமிழ்','ta'],['ಕನ್ನಡ','kn'],
-                          ['मराठी','mr'],['ગુજરાતી','gu'],['ਪੰਜਾਬੀ','pa'],['বাংলা','bn'],['മലയാളം','ml'],['ଓଡ଼ିଆ','or'],
+                          ['मराठी','mr'],['ગુજરાતી','gu'],['ਪੰਜਾਬੀ','pa'],['বাংলা','bn'],['മലയാളം','ml'],
                         ].map((pair) {
                           final sel = curLang == pair[1];
                           return GestureDetector(

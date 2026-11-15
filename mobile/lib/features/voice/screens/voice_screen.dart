@@ -36,7 +36,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਪੰਜਾਬੀ',
     'bn': 'বাংলা',
     'ml': 'മലയാളം',
-    'or': 'ଓଡ଼ିଆ',
   };
 
   static const _sampleQueries = {
@@ -50,7 +49,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': ['ਟਮਾਟਰ ਦਾ ਭਾਅ?', 'ਕਿਹੜੀ ਫਸਲ?', 'ਅੱਜ ਦਾ ਮੌਸਮ', 'ਕਦੋਂ ਵੇਚਣਾ?'],
     'bn': ['টমেটোর দাম?', 'কোন ফসল?', 'আজকের আবহাওয়া', 'কখন বিক্রি?'],
     'ml': ['തക്കാളി വില?', 'ഏത് വിള?', 'ഇന്നത്തെ കാലാവസ്ഥ', 'എപ്പോൾ വിൽക്കണം?'],
-    'or': ['ଟମାଟୋ ଦର?', 'କେଉଁ ଫସଲ?', 'ଆଜି ପାଣିପାଗ', 'କେବେ ବିକ୍ରି?'],
   };
 
   static const _priceResponses = {
@@ -64,7 +62,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਅੱਜ ਟਮਾਟਰ ਦਾ ਭਾਅ ₹1,500/ਕੁਇੰਟਲ ਹੈ। ਆਜ਼ਾਦਪੁਰ ਮੰਡੀ ਵਿੱਚ। ਕੱਲ੍ਹ ਨਾਲੋਂ 11% ਵੱਧ। 🍅📈',
     'bn': 'আজ টমেটোর দাম ₹1,500/কুইন্টাল। আজাদপুর বাজারে। গতকালের চেয়ে 11% বেশি। 🍅📈',
     'ml': 'ഇന്ന് തക്കാളി വില ₹1,500/ക്വിന്റൽ. ആസാദ്‌പൂർ മാർക്കറ്റിൽ. ഇന്നലെയെക്കാൾ 11% കൂടുതൽ. 🍅📈',
-    'or': 'ଆଜି ଟମାଟୋ ଦର ₹1,500/କ୍ୱିଣ୍ଟାଲ। ଆଜାଦପୁର ବଜାରରେ। ଗତକାଲ ଅପେକ୍ଷା 11% ଅଧିକ। 🍅📈',
   };
 
   static const _cropResponses = {
@@ -78,7 +75,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਤੁਹਾਡੀ ਜ਼ਮੀਨ ਅਤੇ ਮੌਸਮ ਅਨੁਸਾਰ: ਟਮਾਟਰ, ਪਿਆਜ਼, ਕਣਕ ਦੀ ਸਿਫਾਰਸ਼। 🌾',
     'bn': 'আপনার মাটি ও মৌসুম অনুযায়ী: টমেটো, পেঁয়াজ, গম সুপারিশ করা হচ্ছে। 🌾',
     'ml': 'നിങ്ങളുടെ മണ്ണും കാലവും അനുസരിച്ച്: തക്കാളി, ഉള്ളി, ഗോതമ്പ് ശുപാർശ. 🌾',
-    'or': 'ଆପଣଙ୍କ ମାଟି ଓ ଋତୁ ଅନୁଯାୟୀ: ଟମାଟୋ, ପିଆଜ, ଗହମ ସୁପାରିଶ। 🌾',
   };
 
   static const _marketResponses = {
@@ -92,7 +88,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਅੱਜ ਮੰਡੀ:\n🍅 ਟਮਾਟਰ: ₹1,500 (+11%)\n🧅 ਪਿਆਜ਼: ₹950 (-13%)\n🥔 ਆਲੂ: ₹750 (+4%)',
     'bn': 'আজকের বাজার:\n🍅 টমেটো: ₹1,500 (+11%)\n🧅 পেঁয়াজ: ₹950 (-13%)\n🥔 আলু: ₹750 (+4%)',
     'ml': 'ഇന്നത്തെ മാർക്കറ്റ്:\n🍅 തക്കാളി: ₹1,500 (+11%)\n🧅 ഉള്ളി: ₹950 (-13%)\n🥔 ഉരുളക്കിഴങ്ങ്: ₹750 (+4%)',
-    'or': 'ଆଜି ବଜାର:\n🍅 ଟମାଟୋ: ₹1,500 (+11%)\n🧅 ପିଆଜ: ₹950 (-13%)\n🥔 ଆଳୁ: ₹750 (+4%)',
   };
 
   @override
@@ -128,17 +123,17 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
   // Detect commodity name from query text
   String? _detectCommodity(String ql) {
     const map = {
-      'Tomato':   ['tomato','टमाटर','టమాట','தக்காளி','ಟೊಮೆಟೊ','टोमॅटो','ટામેટ','ਟਮਾਟਰ','টমেটো','തക്കാളി','ଟମାଟୋ'],
-      'Onion':    ['onion','प्याज','ఉల్లి','வெங்காயம்','ಈರುಳ್ಳಿ','कांदा','ડુંગળી','ਪਿਆਜ਼','পেঁয়াজ','ഉള്ളി','ପିଆଜ'],
-      'Potato':   ['potato','आलू','బంగాళదుంప','உருளைக்கிழங்கு','ಆಲೂ','बटाटा','બટેટ','ਆਲੂ','আলু','ഉരുളക്കിഴ','ଆଳୁ'],
-      'Wheat':    ['wheat','गेहूं','గోధుమ','கோதுமை','ಗೋಧಿ','गहू','ઘઉ','ਕਣਕ','গম','ഗോതമ്പ','ଗହମ'],
-      'Rice':     ['rice','चावल','వరి','அரிசி','ಭತ್ತ','तांदूळ','ચોખ','ਚਾਵਲ','চাল','അരി','ଚାଉଳ'],
-      'Cotton':   ['cotton','कपास','పత్తి','பருத்தி','ಹತ್ತಿ','कापूस','કપાસ','ਕਪਾਹ','তুলা','പരുത്തി','କପା'],
-      'Maize':    ['maize','corn','मक्का','మొక్కజొన్న','மக்காச்சோளம்','ಮೆಕ್ಕೆಜೋಳ','मका','મકઈ','ਮੱਕੀ','ভুট্টা','ചോളം','ମକା'],
-      'Soybean':  ['soybean','soyabean','soya','सोयाबीन','సోయాబీన్','சோயா','ಸೋಯಾ','सोयाबीन','સોયા','ਸੋਇਆ','সয়া','സോയ','ସୋୟା'],
-      'Chillies': ['chilli','chillies','chili','मिर्च','మిర్చి','மிளகாய்','ಮೆಣಸು','मिरची','મરચ','ਮਿਰਚ','মরিচ','മുളക','ମିର୍ଚ'],
-      'Groundnut':['groundnut','peanut','मूंगफली','వేరుశనగ','வேர்க்கடலை','ಕಡಲೆ','भुईमूग','મગફળ','ਮੂੰਗਫਲੀ','চিনাবাদাম','നിലക്കടല','ଚିନାବାଦାମ'],
-      'Sugarcane':['sugarcane','गन्ना','చెరకు','கரும்பு','ಕಬ್ಬು','ऊस','શેરડી','ਗੰਨਾ','আখ','കരിമ്പ','ଆଖୁ'],
+      'Tomato':   ['tomato','टमाटर','టమాట','தக்காளி','ಟೊಮೆಟೊ','टोमॅटो','ટામેટ','ਟਮਾਟਰ','টমেটো','തക്കാളി'],
+      'Onion':    ['onion','प्याज','ఉల్లి','வெங்காயம்','ಈರುಳ್ಳಿ','कांदा','ડુંગળી','ਪਿਆਜ਼','পেঁয়াজ','ഉള്ളി'],
+      'Potato':   ['potato','आलू','బంగాళదుంప','உருளைக்கிழங்கு','ಆಲೂ','बटाटा','બટેટ','ਆਲੂ','আলু','ഉരുളക്കിഴ'],
+      'Wheat':    ['wheat','गेहूं','గోధుమ','கோதுமை','ಗೋಧಿ','गहू','ઘઉ','ਕਣਕ','গম','ഗോതമ്പ'],
+      'Rice':     ['rice','चावल','వరి','அரிசி','ಭತ್ತ','तांदूळ','ચોખ','ਚਾਵਲ','চাল','അരി'],
+      'Cotton':   ['cotton','कपास','పత్తి','பருத்தி','ಹತ್ತಿ','कापूस','કપાસ','ਕਪਾਹ','তুলা','പരുത്തി'],
+      'Maize':    ['maize','corn','मक्का','మొక్కజొన్న','மக்காச்சோளம்','ಮೆಕ್ಕೆಜೋಳ','मका','મકઈ','ਮੱਕੀ','ভুট্টা','ചോളം'],
+      'Soybean':  ['soybean','soyabean','soya','सोयाबीन','సోయాబీన్','சோயா','ಸೋಯಾ','सोयाबीन','સોયા','ਸੋਇਆ','সয়া','സോയ'],
+      'Chillies': ['chilli','chillies','chili','मिर्च','మిర్చి','மிளகாய்','ಮೆಣಸು','मिरची','મરચ','ਮਿਰਚ','মরিচ','മുളക'],
+      'Groundnut':['groundnut','peanut','मूंगफली','వేరుశనగ','வேர்க்கடலை','ಕಡಲೆ','भुईमूग','મગફળ','ਮੂੰਗਫਲੀ','চিনাবাদাম','നിലക്കടല'],
+      'Sugarcane':['sugarcane','गन्ना','చెరకు','கரும்பு','ಕಬ್ಬು','ऊस','શેરડી','ਗੰਨਾ','আখ','കരിമ്പ'],
     };
     for (final entry in map.entries) {
       if (entry.value.any((k) => ql.contains(k))) return entry.key;
@@ -148,16 +143,16 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
 
   // Localized crop names for use in live responses
   static const _cropNames = {
-    'Tomato':    {'hi':'टमाटर','en':'Tomato','te':'టమాట','ta':'தக்காளி','kn':'ಟೊಮೆಟೊ','mr':'टोमॅटो','gu':'ટામેટ','pa':'ਟਮਾਟਰ','bn':'টমেটো','ml':'തക്കാളി','or':'ଟମାଟୋ'},
-    'Onion':     {'hi':'प्याज','en':'Onion','te':'ఉల్లి','ta':'வெங்காயம்','kn':'ಈರುಳ್ಳಿ','mr':'कांदा','gu':'ડુંગળી','pa':'ਪਿਆਜ਼','bn':'পেঁয়াজ','ml':'ഉള്ളി','or':'ପିଆଜ'},
-    'Potato':    {'hi':'आलू','en':'Potato','te':'బంగాళదుంప','ta':'உருளை','kn':'ಆಲೂ','mr':'बटाटा','gu':'બટેટ','pa':'ਆਲੂ','bn':'আলু','ml':'ഉരുളക്കിഴ','or':'ଆଳୁ'},
-    'Wheat':     {'hi':'गेहूं','en':'Wheat','te':'గోధుమ','ta':'கோதுமை','kn':'ಗೋಧಿ','mr':'गहू','gu':'ઘઉ','pa':'ਕਣਕ','bn':'গম','ml':'ഗോതമ്പ','or':'ଗହମ'},
-    'Rice':      {'hi':'चावल','en':'Rice','te':'వరి','ta':'அரிசி','kn':'ಭತ್ತ','mr':'तांदूळ','gu':'ચોખ','pa':'ਚਾਵਲ','bn':'চাল','ml':'അരി','or':'ଚାଉଳ'},
-    'Cotton':    {'hi':'कपास','en':'Cotton','te':'పత్తి','ta':'பருத்தி','kn':'ಹತ್ತಿ','mr':'कापूस','gu':'કપાસ','pa':'ਕਪਾਹ','bn':'তুলা','ml':'പരുത്തി','or':'କପା'},
-    'Maize':     {'hi':'मक्का','en':'Maize','te':'మొక్కజొన్న','ta':'மக்காச்சோளம்','kn':'ಮೆಕ್ಕೆಜೋಳ','mr':'मका','gu':'મકઈ','pa':'ਮੱਕੀ','bn':'ভুট্টা','ml':'ചോളം','or':'ମକା'},
-    'Chillies':  {'hi':'मिर्च','en':'Chillies','te':'మిర్చి','ta':'மிளகாய்','kn':'ಮೆಣಸು','mr':'मिरची','gu':'મરચ','pa':'ਮਿਰਚ','bn':'মরিচ','ml':'മുളക','or':'ମିର୍ଚ'},
-    'Soybean':   {'hi':'सोयाबीन','en':'Soybean','te':'సోయాబీన్','ta':'சோயா','kn':'ಸೋಯಾ','mr':'सोयाबीन','gu':'સોયા','pa':'ਸੋਇਆ','bn':'সয়া','ml':'സോയ','or':'ସୋୟା'},
-    'Groundnut': {'hi':'मूंगफली','en':'Groundnut','te':'వేరుశనగ','ta':'வேர்க்கடலை','kn':'ಕಡಲೆ','mr':'भुईमूग','gu':'મગફળ','pa':'ਮੂੰਗਫਲੀ','bn':'চিনাবাদাম','ml':'നിലക്കടല','or':'ଚିନାବାଦାମ'},
+    'Tomato':    {'hi':'टमाटर','en':'Tomato','te':'టమాట','ta':'தக்காளி','kn':'ಟೊಮೆಟೊ','mr':'टोमॅटो','gu':'ટામેટ','pa':'ਟਮਾਟਰ','bn':'টমেটো','ml':'തക്കാളി'},
+    'Onion':     {'hi':'प्याज','en':'Onion','te':'ఉల్లి','ta':'வெங்காயம்','kn':'ಈರುಳ್ಳಿ','mr':'कांदा','gu':'ડુંગળી','pa':'ਪਿਆਜ਼','bn':'পেঁয়াজ','ml':'ഉള്ളി'},
+    'Potato':    {'hi':'आलू','en':'Potato','te':'బంగాళదుంప','ta':'உருளை','kn':'ಆಲೂ','mr':'बटाटा','gu':'બટેટ','pa':'ਆਲੂ','bn':'আলু','ml':'ഉരുളക്കിഴ'},
+    'Wheat':     {'hi':'गेहूं','en':'Wheat','te':'గోధుమ','ta':'கோதுமை','kn':'ಗೋಧಿ','mr':'गहू','gu':'ઘઉ','pa':'ਕਣਕ','bn':'গম','ml':'ഗോതമ്പ'},
+    'Rice':      {'hi':'चावल','en':'Rice','te':'వరి','ta':'அரிசி','kn':'ಭತ್ತ','mr':'तांदूळ','gu':'ચોખ','pa':'ਚਾਵਲ','bn':'চাল','ml':'അരി'},
+    'Cotton':    {'hi':'कपास','en':'Cotton','te':'పత్తి','ta':'பருத்தி','kn':'ಹತ್ತಿ','mr':'कापूस','gu':'કપાસ','pa':'ਕਪਾਹ','bn':'তুলা','ml':'പരുത്തി'},
+    'Maize':     {'hi':'मक्का','en':'Maize','te':'మొక్కజొన్న','ta':'மக்காச்சோளம்','kn':'ಮೆಕ್ಕೆಜೋಳ','mr':'मका','gu':'મકઈ','pa':'ਮੱਕੀ','bn':'ভুট্টা','ml':'ചോളം'},
+    'Chillies':  {'hi':'मिर्च','en':'Chillies','te':'మిర్చి','ta':'மிளகாய்','kn':'ಮೆಣಸು','mr':'मिरची','gu':'મરચ','pa':'ਮਿਰਚ','bn':'মরিচ','ml':'മുളക'},
+    'Soybean':   {'hi':'सोयाबीन','en':'Soybean','te':'సోయాబీన్','ta':'சோயா','kn':'ಸೋಯಾ','mr':'सोयाबीन','gu':'સોયા','pa':'ਸੋਇਆ','bn':'সয়া','ml':'സോയ'},
+    'Groundnut': {'hi':'मूंगफली','en':'Groundnut','te':'వేరుశనగ','ta':'வேர்க்கடலை','kn':'ಕಡಲೆ','mr':'भुईमूग','gu':'મગફળ','pa':'ਮੂੰਗਫਲੀ','bn':'চিনাবাদাম','ml':'നിലക്കടല'},
   };
 
   String _localCropName(String commodity, String lang) {
@@ -178,7 +173,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     final today = '${DateTime.now().day}/${DateTime.now().month}';
 
     // ── Price query ───────────────────────────────────────────────────────────
-    if (_containsAny(ql, ['भाव','दाम','price','rate','cost','कीमत','मूल्य','ధర','రేటు','ఎంత','விலை','என்ன','ಬೆಲೆ','ಎಷ್ಟು','ভাও','দাম','কত','ਭਾਅ','ਦਰ','ਕੀਮਤ','किंमत','ദര','ദില','ଦର'])) {
+    if (_containsAny(ql, ['भाव','दाम','price','rate','cost','कीमत','मूल्य','ధర','రేటు','ఎంత','விலை','என்ன','ಬೆಲೆ','ಎಷ್ಟು','ভাও','দাম','কত','ਭਾਅ','ਦਰ','ਕੀਮਤ','किंमत','ദര','ദില'])) {
       final matches = commodity != null
           ? livePrices.where((p) => p.commodity == commodity).toList()
           : livePrices;
@@ -197,7 +192,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     }
 
     // ── Market overview ───────────────────────────────────────────────────────
-    if (_containsAny(ql, ['mandi','market','मंडी','बाजार','మార్కెట్','மார்கெட்','ಮಾರುಕಟ್ಟೆ','বাজার','ਮੰਡੀ','മാർക്കറ്റ്','ବଜାର'])) {
+    if (_containsAny(ql, ['mandi','market','मंडी','बाजार','మార్కెట్','மார்கெட்','ಮಾರುಕಟ್ಟೆ','বাজার','ਮੰਡੀ','മാർക്കറ്റ്'])) {
       if (livePrices.isNotEmpty) {
         return _liveLabel(lang) + '\n' + _buildMarketOverview(livePrices, lang);
       }
@@ -205,7 +200,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     }
 
     // ── Crop recommendation — show top-priced crops ───────────────────────────
-    if (_containsAny(ql, ['फसल','खेती','बोना','crop','grow','plant','sow','పంట','வேయాలి','பயிர்','ಬೆಳೆ','ফসল','চাষ','ਫਸਲ','ਖੇਤੀ','วิล','ଫସଲ'])) {
+    if (_containsAny(ql, ['फसल','खेती','बोना','crop','grow','plant','sow','పంట','வேయాలి','பயிர்','ಬೆಳೆ','ফসল','চাষ','ਫਸਲ','ਖੇਤੀ','วิล'])) {
       if (livePrices.isNotEmpty) {
         final sorted = [...livePrices]..sort((a, b) => b.modalPrice.compareTo(a.modalPrice));
         final top3 = sorted.take(3).toList();
@@ -216,7 +211,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     }
 
     // ── Sell timing — use live price trend ────────────────────────────────────
-    if (_containsAny(ql, ['बेच','sell','when','कब','అమ్మ','விற்','ಮಾರ','বিক্রি','ਵੇਚ','विक्री','വിൽ','ବିକ୍ର'])) {
+    if (_containsAny(ql, ['बेच','sell','when','कब','అమ్మ','விற்','ಮಾರ','বিক্রি','ਵੇਚ','विक्री','വിൽ'])) {
       if (livePrices.isNotEmpty) {
         // Find commodity in question or pick top priced crop
         final target = commodity != null
@@ -235,7 +230,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     if (_containsAny(ql, ['msp','minimum','support','government','सरकार','न्यूनतम','pm kisan','kisan','ప్రభుత్వ','அரசு','ಸರ್ಕಾರ','সরকার','ਸਰਕਾਰ'])) {
       return _mspResponses[lang] ?? _mspResponses['en']!;
     }
-    if (_containsAny(ql, ['खाद','उर्वरक','fertilizer','manure','urea','dap','ఎరువు','உரம்','ಗೊಬ್ಬರ','সার','ਖਾਦ','வளம்','ସାର'])) {
+    if (_containsAny(ql, ['खाद','उर्वरक','fertilizer','manure','urea','dap','ఎరువు','உரம்','ಗೊಬ್ಬರ','সার','ਖਾਦ','வளம்'])) {
       return _fertilizerResponses[lang] ?? _fertilizerResponses['en']!;
     }
     if (_containsAny(ql, ['loan','credit','लोन','ऋण','kcc','scheme','yojana','రుణం','கடன்','ಸಾಲ','ঋণ','ਕਰਜ਼','ബാങ്ക്'])) {
@@ -275,7 +270,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       'hi':'📡 लाइव मार्केट डेटा:','en':'📡 Live Market Data:','te':'📡 లైవ్ మార్కెట్ డేటా:',
       'ta':'📡 நேரடி சந்தை தரவு:','kn':'📡 ಲೈವ್ ಮಾರ್ಕೆಟ್ ಡೇಟಾ:','mr':'📡 लाइव्ह बाजार डेटा:',
       'gu':'📡 લાઇવ બજાર ડેટા:','pa':'📡 ਲਾਈਵ ਮੰਡੀ ਡੇਟਾ:','bn':'📡 লাইভ বাজার ডেটা:',
-      'ml':'📡 തത്സമയ വിപണി ഡേറ്റ:','or':'📡 ଲାଇଭ ବଜାର ଡାଟା:',
+      'ml':'📡 തത്സമയ വിപണി ഡേറ്റ:',
     };
     return m[lang] ?? m['en']!;
   }
@@ -292,7 +287,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       'pa':'ਅੱਜ ਦੀਆਂ ਸਭ ਤੋਂ ਵੱਧ ਭਾਅ ਫਸਲਾਂ:\n{lines}\n\nਇਹ ਫਸਲਾਂ ਹੁਣ ਸਭ ਤੋਂ ਵੱਧ ਮੁਨਾਫਾ ਦੇ ਰਹੀਆਂ ਹਨ। 🌾',
       'bn':'আজকের সর্বোচ্চ দামের ফসল:\n{lines}\n\nএই ফসলগুলো এখন সর্বোচ্চ মুনাফা দিচ্ছে। 🌾',
       'ml':'ഇന്നത്തെ ഉയർന്ന വിലയുള്ള വിളകൾ:\n{lines}\n\nഇവ ഇപ്പോൾ ഏറ്റവും കൂടുതൽ ലാഭം നൽകുന്നു. 🌾',
-      'or':'ଆଜିର ସର୍ବୋଚ୍ଚ ଦରରେ ଫସଲ:\n{lines}\n\nଏଗୁଡ଼ିକ ଏବେ ସର୍ବାଧିକ ଲାଭ ଦେଉଛି। 🌾',
     };
     return (m[lang] ?? m['en']!).replaceAll('{lines}', lines);
   }
@@ -310,7 +304,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
         'pa':'{name} ਅੱਜ {price}/ਕੁਇੰਟਲ ਅਤੇ ਵੱਧ ਰਿਹਾ ਹੈ। 2-3 ਦਿਨ ਉਡੀਕ ਕਰੋ। 💰📈',
         'bn':'{name} আজ {price}/কুইন্টাল এবং বাড়ছে। 2-3 দিন অপেক্ষা করুন। 💰📈',
         'ml':'{name} ഇന്ന് {price}/ക്വി, ഉയരുന്നുണ്ട്. 2-3 ദിവസം കൂടി കാത്തിരിക്കുക. 💰📈',
-        'or':'{name} ଆଜି {price}/କ୍ୱି ଏବଂ ବଢ଼ୁଛି। 2-3 ଦିନ ଅପେକ୍ଷା କରନ୍ତୁ। 💰📈',
       };
       return (m[lang] ?? m['en']!).replaceAll('{name}', name).replaceAll('{price}', price);
     } else {
@@ -325,7 +318,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
         'pa':'{name} ਅੱਜ {price}/ਕੁਇੰਟਲ ਅਤੇ ਘੱਟ ਸਕਦਾ ਹੈ। ਹੁਣੇ ਵੇਚੋ। 💰📉',
         'bn':'{name} আজ {price}/কুইন্টাল এবং নামতে পারে। এখনই বিক্রি করুন। 💰📉',
         'ml':'{name} ഇന്ന് {price}/ക്വി, കുറഞ്ഞേക്കാം. ഇപ്പോൾ വിൽക്കുക. 💰📉',
-        'or':'{name} ଆଜି {price}/କ୍ୱି ଏବଂ ଘଟିପାରେ। ଏବେ ବିକ୍ରି କରନ୍ତୁ। 💰📉',
       };
       return (m[lang] ?? m['en']!).replaceAll('{name}', name).replaceAll('{price}', price);
     }
@@ -343,7 +335,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       'pa': '$commodity ਅੱਜ ($date) ਮੋਡਲ ਭਾਅ: $modal/ਕੁਇੰਟਲ\nਮੰਡੀ: $market, $state 📊',
       'bn': '$commodity আজ ($date) মডেল দর: $modal/কুইন্টাল\nবাজার: $market, $state 📊',
       'ml': '$commodity ഇന്ന് ($date) മോഡൽ വില: $modal/ക്വിന്റൽ\nമാർക്കറ്റ്: $market, $state 📊',
-      'or': '$commodity ଆଜି ($date) ମୋଡ଼ଲ ଦର: $modal/କ୍ୱିଣ୍ଟାଲ\nବଜାର: $market, $state 📊',
     };
     return templates[lang] ?? templates['en']!;
   }
@@ -361,7 +352,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       'pa': 'ਅੱਜ ਦੇ ਮੰਡੀ ਭਾਅ:\n$lines\n(ਸਰੋਤ: Agmarknet) 📊',
       'bn': 'আজকের বাজার দর:\n$lines\n(উৎস: Agmarknet) 📊',
       'ml': 'ഇന്നത്തെ വിപണി വില:\n$lines\n(ഉറവിടം: Agmarknet) 📊',
-      'or': 'ଆଜି ବଜାର ଦର:\n$lines\n(ଉତ୍ସ: Agmarknet) 📊',
     };
     return headers[lang] ?? headers['en']!;
   }
@@ -369,7 +359,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
   String _perQtlLabel(String lang) {
     const m = {
       'hi':'/क्विंटल','en':'/qtl','te':'/క్వి','ta':'/குவி','kn':'/ಕ್ವಿ',
-      'mr':'/क्विं','gu':'/ક્વિ','pa':'/ਕੁਇੰ','bn':'/কুই','ml':'/ക്വി','or':'/କ୍ୱି',
+      'mr':'/क्विं','gu':'/ક્વિ','pa':'/ਕੁਇੰ','bn':'/কুই','ml':'/ക്വി',
     };
     return m[lang] ?? '/qtl';
   }
@@ -385,7 +375,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਅੱਜ: 28°C, 72% ਨਮੀ। ਅਗਲੇ 3 ਦਿਨ ਮੀਂਹ ਦੀ ਸੰਭਾਵਨਾ। ਸਿੰਚਾਈ ਘੱਟ ਕਰੋ। ⛅🌧️',
     'bn': 'আজ: 28°C, 72% আর্দ্রতা। আগামী 3 দিন বৃষ্টির সম্ভাবনা। সেচ কমান। ⛅🌧️',
     'ml': 'ഇന്ന്: 28°C, 72% ഈർപ്പം. അടുത്ത 3 ദിവസം മഴ. ജലസേചനം കുറയ്ക്കുക. ⛅🌧️',
-    'or': 'ଆଜି: 28°C, 72% ଆର୍ଦ୍ରତା। ଆଗାମୀ 3 ଦିନ ବର୍ଷା। ଜଳ ସଞ୍ଚୟ କରନ୍ତୁ। ⛅🌧️',
   };
 
   static const _sellResponses = {
@@ -399,7 +388,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਵੇਚਣ ਦਾ ਸਹੀ ਸਮਾਂ: ਟਮਾਟਰ ਹੁਣ 11% ਉੱਪਰ ਹੈ। 2-3 ਦਿਨਾਂ ਵਿੱਚ ਹੋਰ ਵਧ ਸਕਦਾ ਹੈ। 💰',
     'bn': 'বিক্রির সঠিক সময়: টমেটো এখন 11% বেশি। 2-3 দিনে আরও বাড়তে পারে। 💰',
     'ml': 'വിൽക്കാൻ നല്ല സമയം: തക്കാളി ഇപ്പോൾ 11% കൂടുതൽ. 2-3 ദിവസം കൂടി കാത്തിരിക്കാം. 💰',
-    'or': 'ବିକ୍ରି ପାଇଁ ଭଲ ସମୟ: ଟମାଟୋ ଏବେ 11% ଉପରେ। 2-3 ଦିନ ଅପେକ୍ଷା କରନ୍ତୁ। 💰',
   };
 
   static const _mspResponses = {
@@ -413,7 +401,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'MSP 2024-25:\n🌾 ਕਣਕ: ₹2,275/ਕੁਇੰਟਲ\n🌾 ਝੋਨਾ: ₹2,300/ਕੁਇੰਟਲ\nਸਰਕਾਰੀ ਖਰੀਦ ਕੇਂਦਰ ਤੇ ਵੇਚੋ। 🏛️',
     'bn': 'MSP 2024-25:\n🌾 গম: ₹2,275/কুইন্টাল\n🌾 ধান: ₹2,300/কুইন্টাল\nসরকারি ক্রয় কেন্দ্রে বিক্রি করুন। 🏛️',
     'ml': 'MSP 2024-25:\n🌾 ഗോതമ്പ്: ₹2,275/ക്വി\n🌾 നെല്ല്: ₹2,300/ക്വി\nസർക്കാർ സംഭരണ കേന്ദ്രത്തിൽ വിൽക്കുക. 🏛️',
-    'or': 'MSP 2024-25:\n🌾 ଗହମ: ₹2,275/କ୍ୱି\n🌾 ଧାନ: ₹2,300/କ୍ୱି\nସରକାରୀ କ୍ରୟ କେନ୍ଦ୍ରରେ ବିକ୍ରୟ କରନ୍ତୁ। 🏛️',
   };
 
   static const _fertilizerResponses = {
@@ -427,7 +414,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਖਾਦ ਸੁਝਾਅ:\n• ਯੂਰੀਆ: ₹266/ਬੋਰੀ — ਨਾਈਟ੍ਰੋਜਨ\n• DAP: ₹1,350/ਬੋਰੀ — ਫੁੱਲ ਵੇਲੇ 🌿',
     'bn': 'সার পরামর্শ:\n• ইউরিয়া: ₹266/ব্যাগ — নাইট্রোজেন\n• DAP: ₹1,350/ব্যাগ — ফুলের সময় 🌿',
     'ml': 'വളം നിർദ്ദേശം:\n• യൂറിയ: ₹266/ചാക്ക് — നൈട്രജൻ\n• DAP: ₹1,350/ചാക്ക് — പൂക്കൾ 🌿',
-    'or': 'ସାର ପରାମର୍ଶ:\n• ୟୁରିଆ: ₹266/ବୋଝ — ଯବକ୍ଷାର\n• DAP: ₹1,350/ବୋଝ — ଫୁଲ ସମୟ 🌿',
   };
 
   static const _loanResponses = {
@@ -441,7 +427,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਕਿਸਾਨ ਕ੍ਰੈਡਿਟ ਕਾਰਡ:\n• ₹3 ਲੱਖ ਤੱਕ 4% ਵਿਆਜ\n• PM ਕਿਸਾਨ: ₹6,000/ਸਾਲ 🏦',
     'bn': 'কিসান ক্রেডিট কার্ড:\n• ₹3 লাখ পর্যন্ত 4% সুদে\n• PM কিসান: ₹6,000/বছর 🏦',
     'ml': 'കിസാൻ ക്രെഡിറ്റ് കാർഡ്:\n• ₹3 ലക്ഷം വരെ 4% പലിശ\n• PM കിസാൻ: ₹6,000/വർഷം 🏦',
-    'or': 'କିସାନ କ୍ରେଡ଼ିଟ କାର୍ଡ:\n• ₹3 ଲକ୍ଷ ପର୍ଯ୍ୟନ୍ତ 4% ସୁଧ\n• PM କିସାନ: ₹6,000/ବର୍ଷ 🏦',
   };
 
   static const _defaultResponses = {
@@ -455,7 +440,6 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     'pa': 'ਤੁਹਾਡਾ ਸਵਾਲ ਸਮਝ ਆਇਆ। 🤔\nAgriConnect ਤੇ ਪੁੱਛੋ:\n• ਭਾਅ/ਦਰ — ਮੰਡੀ ਭਾਅ\n• ਫਸਲ/ਖੇਤੀ — ਸਲਾਹ\n• ਮੌਸਮ — ਅੱਜ ਦਾ ਅੰਦਾਜ਼ਾ\n• ਵੇਚਣਾ — ਸਹੀ ਸਮਾਂ',
     'bn': 'আপনার প্রশ্ন বুঝেছি। 🤔\nAgriConnect এ জিজ্ঞেস করুন:\n• দাম/ভাও — বাজার দর\n• ফসল/চাষ — পরামর্শ\n• আবহাওয়া — আজকের পূর্বাভাস\n• বিক্রি — সঠিক সময়',
     'ml': 'നിങ്ങളുടെ ചോദ്യം മനസ്സിലായി. 🤔\nAgriConnect ൽ ചോദിക്കാം:\n• വില/നിരക്ക് — വിപണി വില\n• വിള/കൃഷി — ഉപദേശം\n• കാലാവസ്ഥ — ഇന്നത്തെ പ്രവചനം\n• വിൽക്കൽ — നല്ല സമയം',
-    'or': 'ଆପଣଙ୍କ ପ୍ରଶ୍ନ ବୁଝିଲି। 🤔\nAgriConnect ରେ ପଚାରନ୍ତୁ:\n• ଦର/ଭାଓ — ବଜାର ଦର\n• ଫସଲ/ଚାଷ — ପରାମର୍ଶ\n• ପାଣିପାଗ — ଆଜିର ଅନୁମାନ\n• ବିକ୍ରି — ସଠିକ ସମୟ',
   };
 
   // Retained for the voice demo fallback; live requests use _fetchRealResponse.
@@ -464,11 +448,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
     final ql = q.toLowerCase();
 
     // Price
-    if (_containsAny(ql, ['भाव', 'दाम', 'price', 'rate', 'cost', 'ధర', 'రేటు', 'விலை', 'ಬೆಲೆ', 'ದರ', 'ভাও', 'দাম', 'ਭਾਅ', 'ਦਰ', 'ભાવ', 'ദില', 'വില', 'ଦର', 'किंमत', 'कितना'])) {
+    if (_containsAny(ql, ['भाव', 'दाम', 'price', 'rate', 'cost', 'ధర', 'రేటు', 'விலை', 'ಬೆಲೆ', 'ದರ', 'ভাও', 'দাম', 'ਭਾਅ', 'ਦਰ', 'ભાવ', 'ദില', 'വില', 'किंमत', 'कितना'])) {
       return _priceResponses[_selectedLang] ?? _priceResponses['en']!;
     }
     // Crop recommendation
-    if (_containsAny(ql, ['फसल', 'खेती', 'बोना', 'crop', 'grow', 'plant', 'sow', 'పంట', 'వేయాలి', 'பயிர்', 'ಬೆಳೆ', 'ಬೆಳೆಯ', 'ফসল', 'চাষ', 'ਫਸਲ', 'ਖੇਤੀ', 'ফসল', 'വിള', 'ଫସଲ', 'कोणती'])) {
+    if (_containsAny(ql, ['फसल', 'खेती', 'बोना', 'crop', 'grow', 'plant', 'sow', 'పంట', 'వేయాలి', 'பயிர்', 'ಬೆಳೆ', 'ಬೆಳೆಯ', 'ফসল', 'চাষ', 'ਫਸਲ', 'ਖੇਤੀ', 'ফসল', 'വിള', 'कोणती'])) {
       return _cropResponses[_selectedLang] ?? _cropResponses['en']!;
     }
     // Weather
@@ -476,7 +460,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       return _weatherResponses[_selectedLang] ?? _weatherResponses['en']!;
     }
     // Sell / when to sell
-    if (_containsAny(ql, ['बेच', 'sell', 'when', 'कब', 'అమ்', 'అమ్మ', 'விற்', 'ಮಾರ', 'বিক্রি', 'ਵੇਚ', 'विक्री', 'വിൽ', 'ବିକ୍ର'])) {
+    if (_containsAny(ql, ['बेच', 'sell', 'when', 'कब', 'అమ்', 'అమ్మ', 'விற்', 'ಮಾರ', 'বিক্রি', 'ਵੇਚ', 'विक्री', 'വിൽ'])) {
       return _sellResponses[_selectedLang] ?? _sellResponses['en']!;
     }
     // MSP / government price
@@ -484,7 +468,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       return _mspResponses[_selectedLang] ?? _mspResponses['en']!;
     }
     // Fertilizer / manure
-    if (_containsAny(ql, ['खाद', 'उर्वरक', 'fertilizer', 'manure', 'urea', 'dap', 'ఎరువు', 'உரம்', 'ಗೊಬ್ಬರ', 'সার', 'ਖਾਦ', 'खत', 'വളം', 'ସାର'])) {
+    if (_containsAny(ql, ['खाद', 'उर्वरक', 'fertilizer', 'manure', 'urea', 'dap', 'ఎరువు', 'உரம்', 'ಗೊಬ್ಬರ', 'সার', 'ਖਾਦ', 'खत', 'വളം'])) {
       return _fertilizerResponses[_selectedLang] ?? _fertilizerResponses['en']!;
     }
     // Loan / credit / scheme
@@ -492,7 +476,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
       return _loanResponses[_selectedLang] ?? _loanResponses['en']!;
     }
     // Market report (default for market/mandi words)
-    if (_containsAny(ql, ['mandi', 'market', 'मंडी', 'बाजार', 'మార్కెట్', 'மார்கெட்', 'ಮಾರುಕಟ್ಟೆ', 'বাজার', 'ਮੰਡੀ', 'बाजार', 'മാർക്കറ്റ്', 'ବଜାର'])) {
+    if (_containsAny(ql, ['mandi', 'market', 'मंडी', 'बाजार', 'మార్కెట్', 'மார்கெட்', 'ಮಾರುಕಟ್ಟೆ', 'বাজার', 'ਮੰਡੀ', 'बाजार', 'മാർക്കറ്റ്'])) {
       return _marketResponses[_selectedLang] ?? _marketResponses['en']!;
     }
 
@@ -513,7 +497,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> with SingleTickerProv
   static const _langCodes = {
     'hi': 'hi_IN', 'en': 'en_IN', 'te': 'te_IN', 'ta': 'ta_IN',
     'kn': 'kn_IN', 'mr': 'mr_IN', 'gu': 'gu_IN', 'pa': 'pa_IN',
-    'bn': 'bn_IN', 'ml': 'ml_IN', 'or': 'or_IN',
+    'bn': 'bn_IN', 'ml': 'ml_IN',
   };
 
   void _startListening() {

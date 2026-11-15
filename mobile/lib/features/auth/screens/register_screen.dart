@@ -32,7 +32,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   static const _crops = ['Tomato', 'Onion', 'Potato', 'Wheat', 'Rice', 'Cotton', 'Sugarcane', 'Maize', 'Soybean', 'Chillies'];
   static const _languages = {
     'hi': 'हिंदी', 'en': 'English', 'te': 'తెలుగు', 'ta': 'தமிழ்', 'kn': 'ಕನ್ನಡ',
-    'mr': 'मराठी', 'gu': 'ગુજરાતી', 'pa': 'ਪੰਜਾਬੀ', 'bn': 'বাংলা', 'ml': 'മലയാളം', 'or': 'ଓଡ଼ିଆ',
+    'mr': 'मराठी', 'gu': 'ગુજરાતી', 'pa': 'ਪੰਜਾਬੀ', 'bn': 'বাংলা', 'ml': 'മലയാളം',
   };
 
   @override

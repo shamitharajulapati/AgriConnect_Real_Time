@@ -26,7 +26,12 @@ void main() async {
   // Load config (Supabase keys, ML URL, etc.)
   await AppConfig.load();
   final prefs = await SharedPreferences.getInstance();
-  final savedLang = prefs.getString('language') ?? 'en';
+  const supportedLanguages = {
+    'en', 'hi', 'te', 'ta', 'kn', 'mr', 'gu', 'pa', 'bn', 'ml',
+  };
+  final storedLang = prefs.getString('language') ?? 'en';
+  final savedLang = supportedLanguages.contains(storedLang) ? storedLang : 'en';
+  if (savedLang != storedLang) await prefs.setString('language', savedLang);
   final savedState = prefs.getString('state')?.trim() ?? '';
   final savedDistrict = prefs.getString('district')?.trim() ?? '';
 

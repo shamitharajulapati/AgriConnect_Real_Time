@@ -33,7 +33,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     'pa': 'ਪੰਜਾਬੀ',
     'bn': 'বাংলা',
     'ml': 'മലయാളം',
-    'or': 'ଓଡ଼ିଆ',
   };
 
   @override

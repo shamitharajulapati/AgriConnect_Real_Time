@@ -34,7 +34,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       icon: Icons.record_voice_over,
       color: AppColors.secondary,
       title: 'Voice Assistant',
-      subtitle: 'Ask in Hindi, Telugu, Tamil\nand 8 more Indian languages',
+      subtitle: 'Ask in Hindi, Telugu, Tamil\nand 7 more Indian languages',
       emoji: '🎤',
     ),
     _OnboardPage(
