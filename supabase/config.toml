@@ -1,0 +1,4 @@
+project_id = "agriconnect-real-time"
+
+[functions.sync-market-prices]
+verify_jwt = false
