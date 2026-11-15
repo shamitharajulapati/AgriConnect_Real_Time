@@ -35,6 +35,9 @@ async function main() {
   if (failures) {
     throw new Error(`${failures} state sync(s) failed; see logs above`);
   }
+  if (total === 0) {
+    throw new Error('No live market-price records were saved. Check the data.gov.in key, source availability, and API filters.');
+  }
 }
 
 main().catch(error => {

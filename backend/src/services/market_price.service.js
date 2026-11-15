@@ -4,27 +4,28 @@ const supabase = require('../config/supabase');
 const logger = require('../config/logger');
 
 // ─────────────────────────────────────────────────────────────
-// SOURCE 1: data.gov.in with PUBLIC demo key (no registration)
+// SOURCE 1: data.gov.in Agmarknet variety-wise daily market prices
 // ─────────────────────────────────────────────────────────────
-const DEMO_KEY = '579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b';
-const AGMARKNET_URL = 'https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070';
+const AGMARKNET_URL = 'https://api.data.gov.in/resource/35985678-0d79-46b4-9ed6-6f13308a1d24';
 
 async function fetchFromDataGovIn(state, commodity) {
   try {
     const params = {
-      'api-key': process.env.AGMARKNET_KEY || DEMO_KEY,
+      'api-key': process.env.AGMARKNET_KEY,
       format: 'json',
-      limit: 500,
+      limit: 1000,
+      offset: 0,
     };
-    if (state) params['filters[state]'] = state;
-    if (commodity) params['filters[commodity]'] = commodity;
+    if (state) params['filters[State]'] = state;
+    if (commodity) params['filters[Commodity]'] = commodity;
 
     const res = await axios.get(AGMARKNET_URL, { params, timeout: 12000 });
     const records = res.data?.records ?? [];
     logger.info(`[DataGovIn] Fetched ${records.length} records for ${state}`);
     return records.map(normalizeRecord).filter(Boolean);
   } catch (err) {
-    logger.warn(`[DataGovIn] Failed: ${err.message}`);
+    const detail = err.response?.data?.error || err.response?.data?.message || err.message;
+    logger.warn(`[DataGovIn] Failed: ${detail}`);
     return null; // trigger fallback
   }
 }
@@ -300,17 +301,17 @@ function parseAgmarknetDate(raw) {
 }
 
 function normalizeRecord(r) {
-  const isoDate = parseAgmarknetDate(r.arrival_date);
+  const isoDate = parseAgmarknetDate(r.arrival_date ?? r.Arrival_Date);
   if (!isoDate) return null;
   return {
-    id: `${r.state}_${r.market}_${r.commodity}_${isoDate}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
-    commodity: r.commodity,
-    market: r.market,
-    state: r.state,
-    district: r.district || '',
-    min_price: parseFloat(r.min_price) || 0,
-    max_price: parseFloat(r.max_price) || 0,
-    modal_price: parseFloat(r.modal_price) || 0,
+    id: `${r.State ?? r.state}_${r.Market ?? r.market}_${r.Commodity ?? r.commodity}_${r.Variety ?? r.variety ?? ''}_${r.Grade ?? r.grade ?? ''}_${isoDate}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+    commodity: r.Commodity ?? r.commodity,
+    market: r.Market ?? r.market,
+    state: r.State ?? r.state,
+    district: r.District ?? r.district ?? '',
+    min_price: parseFloat(r.Min_Price ?? r.min_price) || 0,
+    max_price: parseFloat(r.Max_Price ?? r.max_price) || 0,
+    modal_price: parseFloat(r.Modal_Price ?? r.modal_price) || 0,
     unit: 'quintal',
     arrival_date: isoDate,
     source: 'agmarknet',
