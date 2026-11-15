@@ -15,6 +15,7 @@ async function fetchFromDataGovIn(state, commodity) {
       format: 'json',
       limit: 1000,
       offset: 0,
+      'sort[Arrival_Date]': 'desc',
     };
     if (state) params['filters[State]'] = state;
     if (commodity) params['filters[Commodity]'] = commodity;
