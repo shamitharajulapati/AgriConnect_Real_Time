@@ -22,7 +22,7 @@ async function fetchFromDataGovIn(state, commodity) {
     const res = await axios.get(AGMARKNET_URL, { params, timeout: 12000 });
     const records = res.data?.records ?? [];
     logger.info(`[DataGovIn] Fetched ${records.length} records for ${state}`);
-    return records.map(normalizeRecord);
+    return records.map(normalizeRecord).filter(Boolean);
   } catch (err) {
     logger.warn(`[DataGovIn] Failed: ${err.message}`);
     return null; // trigger fallback
@@ -209,22 +209,54 @@ async function syncMarketPrices(state, commodity) {
     return stateMatches && commodityMatches;
   });
 
-  // Fallback: seed data
+  // Do not insert synthetic seed prices when live sources return no rows.
   if (!records?.length) {
     logger.warn('[Market] No live price records found; skipping sync instead of inserting sample prices.');
+    return 0;
+  }
+
+  // A source response can contain repeated market/commodity/date rows. Since
+  // those normalize to the same ID, PostgreSQL rejects a single upsert batch
+  // that contains the same conflict key more than once. Keep the last source
+  // row for each ID before batching.
+  const recordsWithId = records.filter(record => record.id);
+  const uniqueRecords = Array.from(
+    new Map(recordsWithId.map(record => [record.id, record])).values(),
+  );
+  const duplicateCount = recordsWithId.length - uniqueRecords.length;
+  const missingIdCount = records.length - recordsWithId.length;
+  if (duplicateCount > 0) {
+    logger.warn(`[Market] Removed ${duplicateCount} duplicate records before Supabase upsert`);
+  }
+  if (missingIdCount > 0) {
+    logger.warn(`[Market] Skipped ${missingIdCount} records without IDs`);
+  }
+  if (uniqueRecords.length === 0) {
+    logger.warn('[Market] No records with valid IDs remained after deduplication.');
     return 0;
   }
 
   // Upsert to Supabase in batches
   const BATCH = 100;
   let total = 0;
-  for (let i = 0; i < records.length; i += BATCH) {
-    const batch = records.slice(i, i + BATCH);
+  let failedBatches = 0;
+  for (let i = 0; i < uniqueRecords.length; i += BATCH) {
+    const batch = uniqueRecords.slice(i, i + BATCH);
     const { error } = await supabase.from('market_prices').upsert(batch, { onConflict: 'id' });
-    if (error) logger.error('Supabase upsert error:', error.message);
-    else total += batch.length;
+    if (error) {
+      failedBatches += 1;
+      const reason = [error.code, error.message, error.details, error.hint]
+        .filter(Boolean)
+        .join(' | ');
+      logger.error(`Supabase upsert failed for ${state} (batch ${i + 1}-${i + batch.length}): ${reason || JSON.stringify(error)}`);
+    } else {
+      total += batch.length;
+    }
   }
   logger.info(`Synced ${total} records to Supabase`);
+  if (failedBatches > 0) {
+    throw new Error(`${failedBatches} Supabase upsert batch(es) failed for ${state}; ${total} records were saved`);
+  }
   return total;
 }
 
@@ -251,16 +283,25 @@ async function seedInitialPrices() {
 
 // Agmarknet returns arrival_date as DD/MM/YYYY — Supabase's arrival_date column expects ISO YYYY-MM-DD.
 function parseAgmarknetDate(raw) {
-  const today = new Date().toISOString().split('T')[0];
-  if (!raw) return today;
-  const parts = raw.split('/');
-  if (parts.length !== 3) return today;
-  const [day, month, year] = parts;
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  const isoMatch = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const slashMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!isoMatch && !slashMatch) return null;
+  const yearText = isoMatch ? isoMatch[1] : slashMatch[3];
+  const monthText = isoMatch ? isoMatch[2] : slashMatch[2];
+  const dayText = isoMatch ? isoMatch[3] : slashMatch[1];
+  const day = Number(dayText);
+  const month = Number(monthText);
+  const year = Number(yearText);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${yearText}-${monthText.padStart(2, '0')}-${dayText.padStart(2, '0')}`;
 }
 
 function normalizeRecord(r) {
   const isoDate = parseAgmarknetDate(r.arrival_date);
+  if (!isoDate) return null;
   return {
     id: `${r.state}_${r.market}_${r.commodity}_${isoDate}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
     commodity: r.commodity,
