@@ -41,6 +41,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep market updates and price-alert evaluation alive across signed-in tabs.
+    ref.watch(marketPricesRealtimeProvider);
+    ref.watch(alertsProvider);
     final s = ref.watch(appStringsProvider);
     final tabs = [
       _Tab(

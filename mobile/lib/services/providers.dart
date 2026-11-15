@@ -48,7 +48,38 @@ final marketPricesRealtimeProvider = StreamProvider.autoDispose<int>((ref) {
 
   ref.onDispose(() {
     debounce?.cancel();
-    unawaited(channel.unsubscribe());
+    unawaited(channel.unsubscribe().then<void>((_) {}));
+    unawaited(events.close());
+  });
+  return events.stream;
+});
+
+final chatRoomsRealtimeProvider = StreamProvider.autoDispose<int>((ref) {
+  if (!AppConfig.isSupabaseConfigured || AppConfig.isAuthMock) {
+    return const Stream<int>.empty();
+  }
+
+  final events = StreamController<int>();
+  var revision = 0;
+  Timer? debounce;
+  final channel = Supabase.instance.client
+      .channel('chat-rooms-refresh')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'chat_rooms',
+        callback: (_) {
+          debounce?.cancel();
+          debounce = Timer(const Duration(milliseconds: 500), () {
+            if (!events.isClosed) events.add(++revision);
+          });
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() {
+    debounce?.cancel();
+    unawaited(channel.unsubscribe().then<void>((_) {}));
     unawaited(events.close());
   });
   return events.stream;
@@ -297,6 +328,7 @@ class AlertsNotifier extends StateNotifier<AsyncValue<List<CropAlert>>> {
 // ── Chat ──────────────────────────────────────────────────────────────────────
 
 final chatRoomsProvider = FutureProvider.autoDispose<List<ChatRoom>>((ref) {
+  ref.watch(chatRoomsRealtimeProvider);
   return ref.read(apiProvider).fetchChatRooms();
 });
 
@@ -312,17 +344,27 @@ class ChatNotifier extends StateNotifier<List<ChatMessage>> {
   final ApiService _api;
   final String _roomId;
   static const _myId = 'me';
+  RealtimeChannel? _messageChannel;
 
   Future<void> _load() async {
     final msgs = await _api.fetchMessages(_roomId, _myId);
     if (mounted) state = msgs;
 
     // Subscribe to realtime if Supabase is configured
-    _api.subscribeToMessages(_roomId, (msg) {
+    _messageChannel = _api.subscribeToMessages(_roomId, (msg) {
       if (msg.senderId != _myId && mounted) {
         state = [...state, msg];
       }
     });
+  }
+
+  @override
+  void dispose() {
+    final channel = _messageChannel;
+    if (channel != null) {
+      unawaited(channel.unsubscribe().then<void>((_) {}));
+    }
+    super.dispose();
   }
 
   Future<bool> send(String text) async {
@@ -414,6 +456,10 @@ final userLocationProvider = StateProvider<String>((ref) => 'Karnataka');
 
 final weatherProvider = FutureProvider.autoDispose<WeatherData>((ref) {
   final location = ref.watch(userLocationProvider);
+  final timer = Timer.periodic(const Duration(minutes: 15), (_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(timer.cancel);
   return ref.read(apiProvider).fetchWeather(location);
 });
 

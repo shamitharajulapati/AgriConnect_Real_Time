@@ -15,34 +15,12 @@ class DemandScreen extends ConsumerStatefulWidget {
 }
 
 class _DemandScreenState extends ConsumerState<DemandScreen> {
-  String _selectedCrop = 'Tomato';
-  bool _loading = true;
-  DemandResult? _data;
-
   static const _crops = ['Tomato', 'Onion', 'Potato', 'Wheat', 'Rice', 'Cotton', 'Chillies'];
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() { _loading = true; });
-    try {
-      final result = await ref.read(apiProvider).fetchDemand(
-        _selectedCrop,
-        state: ref.read(userLocationProvider),
-      );
-      setState(() { _data = result; _loading = false; });
-    } catch (e) {
-      debugPrint('Market activity refresh failed: $e');
-      setState(() { _data = null; _loading = false; });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final selectedCrop = ref.watch(demandCropProvider);
+    final data = ref.watch(demandProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Market Activity')),
       body: Column(
@@ -54,11 +32,11 @@ class _DemandScreenState extends ConsumerState<DemandScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: _crops.map((c) {
-                  final sel = c == _selectedCrop;
+                  final sel = c == selectedCrop;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: GestureDetector(
-                      onTap: () { setState(() => _selectedCrop = c); _load(); },
+                      onTap: () => ref.read(demandCropProvider.notifier).state = c,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -75,23 +53,28 @@ class _DemandScreenState extends ConsumerState<DemandScreen> {
             ),
           ),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : _data == null
-                ? const SizedBox.expand()
-                : SingleChildScrollView(
+            child: data.when(
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              error: (_, __) => Center(
+                child: ElevatedButton(
+                  onPressed: () => ref.invalidate(demandProvider),
+                  child: const Text('Retry'),
+                ),
+              ),
+              data: (result) => SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
-                        if (_data!.isDemo) const DemoDataNotice(),
-                        _DemandIndexCard(data: _data!).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+                        if (result.isDemo) const DemoDataNotice(),
+                        _DemandIndexCard(data: result).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
                         const SizedBox(height: 16),
-                        _DemandChartCard(data: _data!).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
+                        _DemandChartCard(data: result).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
                         const SizedBox(height: 16),
-                        _RegionalDemandCard(data: _data!).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+                        _RegionalDemandCard(data: result).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
                       ],
                     ),
                   ),
+            ),
           ),
         ],
       ),
