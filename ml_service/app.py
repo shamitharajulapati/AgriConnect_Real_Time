@@ -157,6 +157,118 @@ def market_prices():
     except (requests.RequestException, ValueError):
         return jsonify({'error': 'Live market source or database write failed.'}), 502
 
+
+@app.route('/market/sync', methods=['POST'])
+def sync_market_prices():
+    """Fetch daily Agmarknet rows from the hosted service and upsert them."""
+    sync_secret = os.getenv('MARKET_SYNC_SECRET', '')
+    if not sync_secret or request.headers.get('X-Secret') != sync_secret:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    api_key = os.getenv('AGMARKNET_API_KEY', '')
+    supabase_url = os.getenv('SUPABASE_URL', '').rstrip('/')
+    service_role_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY', '')
+    if not api_key or not supabase_url or not service_role_key:
+        return jsonify({'error': 'Market sync is not configured on the hosted service.'}), 503
+
+    states = [
+        'Maharashtra', 'Punjab', 'Karnataka', 'Andhra Pradesh', 'Telangana',
+        'Tamil Nadu', 'Uttar Pradesh', 'Rajasthan', 'Gujarat',
+        'Madhya Pradesh', 'Delhi', 'West Bengal', 'Bihar',
+    ]
+    resource_url = 'https://api.data.gov.in/resource/35985678-0d79-46b4-9ed6-6f13308a1d24'
+    saved = 0
+    failures = []
+    newest_date = None
+
+    for state in states:
+        try:
+            response = requests.get(resource_url, params={
+                'api-key': api_key,
+                'format': 'json',
+                'limit': 1000,
+                'offset': 0,
+                'sort[Arrival_Date]': 'desc',
+                'filters[State]': state,
+            }, timeout=30)
+            response.raise_for_status()
+            payload = response.json()
+            records = payload.get('records', []) if isinstance(payload, dict) else []
+            if not isinstance(records, list):
+                records = []
+            rows_by_id = {}
+            for record in records:
+                raw_date = str(record.get('Arrival_Date') or record.get('arrival_date') or '').strip()
+                try:
+                    if '/' in raw_date:
+                        arrival_date = datetime.strptime(raw_date, '%d/%m/%Y').date().isoformat()
+                    else:
+                        arrival_date = datetime.strptime(raw_date[:10], '%Y-%m-%d').date().isoformat()
+                    minimum = float(record.get('Min_Price') or record.get('min_price') or 0)
+                    maximum = float(record.get('Max_Price') or record.get('max_price') or 0)
+                    modal = float(record.get('Modal_Price') or record.get('modal_price') or 0)
+                except (TypeError, ValueError):
+                    continue
+
+                row_state = str(record.get('State') or record.get('state') or state).strip()
+                market = str(record.get('Market') or record.get('market') or '').strip()
+                commodity = str(record.get('Commodity') or record.get('commodity') or '').strip()
+                variety = str(record.get('Variety') or record.get('variety') or '').strip()
+                grade = str(record.get('Grade') or record.get('grade') or '').strip()
+                if not arrival_date or not market or not commodity or modal <= 0:
+                    continue
+
+                row_id = re.sub(
+                    r'[^a-zA-Z0-9_-]', '_',
+                    f'{row_state}_{market}_{commodity}_{variety}_{grade}_{arrival_date}',
+                )
+                rows_by_id[row_id] = {
+                    'id': row_id,
+                    'commodity': commodity,
+                    'market': market,
+                    'state': row_state,
+                    'district': str(record.get('District') or record.get('district') or '').strip(),
+                    'min_price': minimum,
+                    'max_price': maximum,
+                    'modal_price': modal,
+                    'unit': 'quintal',
+                    'arrival_date': arrival_date,
+                    'source': 'agmarknet',
+                }
+                newest_date = max(newest_date or arrival_date, arrival_date)
+
+            rows = list(rows_by_id.values())
+            for offset in range(0, len(rows), 200):
+                result = requests.post(
+                    f'{supabase_url}/rest/v1/market_prices?on_conflict=id',
+                    json=rows[offset:offset + 200],
+                    headers={
+                        'apikey': service_role_key,
+                        'Authorization': f'Bearer {service_role_key}',
+                        'Content-Type': 'application/json',
+                        'Prefer': 'resolution=merge-duplicates,return=minimal',
+                    },
+                    timeout=30,
+                )
+                result.raise_for_status()
+            saved += len(rows)
+            app.logger.info('Market sync: %s saved %s rows', state, len(rows))
+        except (requests.RequestException, ValueError) as error:
+            # The provider API key is in the request URL; never log exception
+            # text or a traceback that could include that URL.
+            app.logger.error('Market sync failed for %s (%s)', state, type(error).__name__)
+            failures.append(state)
+
+    if failures or not saved:
+        return jsonify({
+            'error': 'Market sync did not complete for all states.',
+            'saved': saved,
+            'failedStates': failures,
+            'latestArrivalDate': newest_date,
+        }), 502
+
+    return jsonify({'saved': saved, 'states': len(states), 'latestArrivalDate': newest_date})
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if not verify_secret():

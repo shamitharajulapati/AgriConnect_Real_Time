@@ -2,8 +2,8 @@ name: AgriConnect market price sync
 
 on:
   schedule:
-    - cron: '0 0,6,12,18 * * *'
-      timezone: Asia/Kolkata
+    # Run daily at 02:30 India time (21:00 UTC on the previous day).
+    - cron: '0 21 * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,24 +12,22 @@ permissions:
 jobs:
   sync-prices:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    env:
-      NODE_ENV: production
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      AGMARKNET_KEY: ${{ secrets.AGMARKNET_KEY }}
     steps:
-      - name: Check out the default branch
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-      - name: Install backend dependencies
-        run: npm ci
-      - name: Sync prices into Supabase
-        run: node src/scripts/sync-market-prices.js
+      - name: Check required cloud settings
+        env:
+          RENDER_ML_URL: ${{ secrets.RENDER_ML_URL }}
+          MARKET_SYNC_SECRET: ${{ secrets.MARKET_SYNC_SECRET }}
+        run: |
+          test -n "$RENDER_ML_URL" || { echo "Missing GitHub Actions secret: RENDER_ML_URL"; exit 1; }
+          test -n "$MARKET_SYNC_SECRET" || { echo "Missing GitHub Actions secret: MARKET_SYNC_SECRET"; exit 1; }
+
+      - name: Trigger hosted market sync
+        env:
+          RENDER_ML_URL: ${{ secrets.RENDER_ML_URL }}
+          MARKET_SYNC_SECRET: ${{ secrets.MARKET_SYNC_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --retry 2 --retry-all-errors --max-time 900 \
+            --request POST \
+            --header "X-Secret: $MARKET_SYNC_SECRET" \
+            "${RENDER_ML_URL%/}/market/sync"
