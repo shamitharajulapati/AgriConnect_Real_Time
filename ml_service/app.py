@@ -46,13 +46,21 @@ def verify_secret():
             headers={'apikey': supabase_anon_key, 'Authorization': authorization},
             timeout=5,
         )
-        return response.status_code == 200
-    except requests.RequestException:
+        if response.status_code != 200:
+            app.logger.warning('Supabase rejected ML bearer authentication (HTTP %s)', response.status_code)
+            return False
+        return True
+    except requests.RequestException as error:
+        app.logger.warning('Could not validate ML bearer authentication (%s)', type(error).__name__)
         return False
+
+
+def mobile_auth_configured():
+    return bool(os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_ANON_KEY'))
 
 @app.route('/health')
 def health():
-    auth_configured = bool(SECRET or (os.getenv('SUPABASE_URL') and os.getenv('SUPABASE_ANON_KEY')))
+    auth_configured = bool(SECRET or mobile_auth_configured())
     market_sync_configured = bool(
         os.getenv('AGMARKNET_API_KEY')
         and os.getenv('SUPABASE_URL')
@@ -61,8 +69,10 @@ def health():
     return jsonify({
         'status': 'ok',
         'service': 'agriconnect-ml',
-        'version': '2.1.0',
+        'version': '2.2.0',
         'auth_configured': auth_configured,
+        'mobile_auth_configured': mobile_auth_configured(),
+        'server_auth_configured': bool(SECRET),
         'market_sync_configured': market_sync_configured,
     })
 
@@ -174,7 +184,7 @@ def sync_market_prices():
     states = [
         'Maharashtra', 'Punjab', 'Karnataka', 'Andhra Pradesh', 'Telangana',
         'Tamil Nadu', 'Uttar Pradesh', 'Rajasthan', 'Gujarat',
-        'Madhya Pradesh', 'Delhi', 'West Bengal', 'Bihar',
+        'Kerala', 'West Bengal', 'Bihar',
     ]
     resource_url = 'https://api.data.gov.in/resource/35985678-0d79-46b4-9ed6-6f13308a1d24'
     saved = 0
@@ -284,15 +294,27 @@ def predict():
         return jsonify({'error': 'days must be between 1 and 90'}), 400
 
     from api.price_prediction import predict as ml_predict
-    return jsonify(ml_predict({'commodity': commodity, 'state': state, 'days': days}))
+    try:
+        return jsonify(ml_predict({'commodity': commodity, 'state': state, 'days': days}))
+    except RuntimeError as error:
+        return jsonify({'error': str(error)}), 503
 
 @app.route('/crop-reco', methods=['POST'])
 def crop_reco():
     if not verify_secret():
+        if not mobile_auth_configured():
+            return jsonify({
+                'error': 'Mobile sign-in validation is not configured on the ML service. Configure SUPABASE_URL and SUPABASE_ANON_KEY.',
+            }), 503
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.get_json(silent=True) or {}
     from api.crop_recommendation import recommend
-    return jsonify(recommend(data))
+    try:
+        return jsonify(recommend(data))
+    except RuntimeError as error:
+        return jsonify({'error': str(error)}), 503
+    except requests.RequestException:
+        return jsonify({'error': 'Could not load recent market prices for crop recommendations.'}), 502
 
 @app.route('/demand', methods=['POST'])
 def demand():
@@ -300,7 +322,10 @@ def demand():
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.get_json(silent=True) or {}
     from api.demand_forecast import forecast_demand
-    return jsonify(forecast_demand(data.get('commodity'), data.get('state')))
+    try:
+        return jsonify(forecast_demand(data.get('commodity'), data.get('state')))
+    except RuntimeError as error:
+        return jsonify({'error': str(error)}), 503
 
 @app.route('/profit', methods=['POST'])
 def profit():
@@ -308,7 +333,10 @@ def profit():
         return jsonify({'error': 'Unauthorized'}), 401
     data = request.json or {}
     from api.profit_advisor import advise
-    return jsonify(advise(data))
+    try:
+        return jsonify(advise(data))
+    except RuntimeError as error:
+        return jsonify({'error': str(error)}), 503
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
