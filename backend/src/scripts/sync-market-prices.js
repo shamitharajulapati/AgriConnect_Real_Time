@@ -9,7 +9,7 @@ const STATES = [
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 async function main() {
-  const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY', 'AGMARKNET_KEY'];
+  const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_KEY'];
   const missing = required.filter(name => !process.env[name]);
   if (missing.length) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
@@ -36,7 +36,7 @@ async function main() {
     throw new Error(`${failures} state sync(s) failed; see logs above`);
   }
   if (total === 0) {
-    throw new Error('No live market-price records were saved. Check the data.gov.in key, source availability, and API filters.');
+    throw new Error('No live market-price records were saved. Check the market-data source availability and filters.');
   }
 }
 

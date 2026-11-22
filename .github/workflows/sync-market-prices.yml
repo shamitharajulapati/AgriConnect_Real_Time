@@ -15,11 +15,9 @@ jobs:
     steps:
       - name: Check required cloud settings
         env:
-          AGMARKNET_KEY: ${{ secrets.AGMARKNET_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          test -n "$AGMARKNET_KEY" || { echo "Missing GitHub Actions secret: AGMARKNET_KEY"; exit 1; }
           test -n "$SUPABASE_SERVICE_KEY" || { echo "Missing GitHub Actions secret: SUPABASE_SERVICE_KEY"; exit 1; }
           test -n "$SUPABASE_URL" || { echo "Missing GitHub Actions secret: SUPABASE_URL"; exit 1; }
 
@@ -40,7 +38,6 @@ jobs:
       - name: Fetch market data and save it to Supabase
         working-directory: backend
         env:
-          AGMARKNET_KEY: ${{ secrets.AGMARKNET_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: node src/scripts/sync-market-prices.js

@@ -37,6 +37,26 @@ async function fetchFromDataGovIn(state, commodity) {
 // SOURCE 2: eNAM API (National Agriculture Market — no key)
 // ─────────────────────────────────────────────────────────────
 const ENAM_URL = 'https://enam.gov.in/web/dashboard_annexure/trade_data';
+const MANDI_API_URL = 'https://api.dharun.dev/v1/mandi';
+
+// Public cached mirror of Agmarknet. It refreshes the official data.gov.in
+// feed every few hours and avoids the intermittent timeouts from GitHub runners.
+async function fetchFromMandiApi(state, commodity) {
+  try {
+    const res = await axios.get(MANDI_API_URL, {
+      params: { state, commodity: commodity || undefined, limit: 1000 },
+      timeout: 20000,
+      headers: { Accept: 'application/json' },
+    });
+    const records = res.data?.data ?? [];
+    logger.info(`[Mandi API] Fetched ${records.length} records for ${state}`);
+    return records.map(normalizeRecord).filter(Boolean);
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
+    logger.warn(`[Mandi API] Failed: ${detail}`);
+    return null;
+  }
+}
 
 async function fetchFromENAM(commodity) {
   try {
@@ -85,10 +105,16 @@ async function syncMarketPrices(state, commodity) {
   logger.info(`Syncing prices for state=${state} commodity=${commodity}`);
   let records = null;
 
-  // Try Source 1: data.gov.in using the configured API key
-  records = await fetchFromDataGovIn(state, commodity);
+  // Try the cached Agmarknet mirror first. It returns current rows without
+  // requiring a key and is reachable from GitHub-hosted runners.
+  records = await fetchFromMandiApi(state, commodity);
 
-  // Try Source 2: eNAM
+  // Keep the existing providers as fallbacks when the mirror is unavailable.
+  if (!records?.length && process.env.AGMARKNET_KEY) {
+    records = await fetchFromDataGovIn(state, commodity);
+  }
+
+  // Try eNAM if the mirror and optional data.gov.in fallback have no rows.
   if (!records?.length) {
     records = await fetchFromENAM(commodity);
   }
@@ -174,7 +200,7 @@ function parseAgmarknetDate(raw) {
 }
 
 function normalizeRecord(r) {
-  const isoDate = parseAgmarknetDate(r.arrival_date ?? r.Arrival_Date);
+  const isoDate = parseAgmarknetDate(r.arrival_date ?? r.Arrival_Date ?? r.date);
   if (!isoDate) return null;
   return {
     id: `${r.State ?? r.state}_${r.Market ?? r.market}_${r.Commodity ?? r.commodity}_${r.Variety ?? r.variety ?? ''}_${r.Grade ?? r.grade ?? ''}_${isoDate}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
@@ -187,7 +213,7 @@ function normalizeRecord(r) {
     modal_price: parseFloat(r.Modal_Price ?? r.modal_price) || 0,
     unit: 'quintal',
     arrival_date: isoDate,
-    source: 'agmarknet',
+    source: r.source?.name || 'agmarknet',
   };
 }
 
