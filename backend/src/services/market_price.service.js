@@ -20,7 +20,9 @@ async function fetchFromDataGovIn(state, commodity) {
     if (state) params['filters[State]'] = state;
     if (commodity) params['filters[Commodity]'] = commodity;
 
-    const res = await axios.get(AGMARKNET_URL, { params, timeout: 12000 });
+    // The provider can respond slowly from hosted runners; allow enough time
+    // for its 1,000-row response before falling back to another source.
+    const res = await axios.get(AGMARKNET_URL, { params, timeout: 45000 });
     const records = res.data?.records ?? [];
     logger.info(`[DataGovIn] Fetched ${records.length} records for ${state}`);
     return records.map(normalizeRecord).filter(Boolean);
@@ -77,123 +79,13 @@ async function fetchFromENAM(commodity) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SOURCE 3: Agmarknet Website Scraper (no key needed)
-// ─────────────────────────────────────────────────────────────
-const AGMARKNET_SCRAPE_URL = 'https://agmarknet.gov.in/PriceTrend.aspx';
-
-async function fetchFromScraper(commodity, state) {
-  try {
-    const res = await axios.get('https://agmarknet.gov.in/SearchCommoditywise.aspx', {
-      params: {
-        kwd: commodity || 'Tomato',
-        ft: 'SO',
-        Fy: '2024',
-      },
-      timeout: 15000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-    });
-
-    // Parse price table from HTML
-    const html = res.data;
-    const records = parseAgmarknetHTML(html, commodity, state);
-    logger.info(`[Scraper] Parsed ${records.length} records`);
-    return records.length ? records : null;
-  } catch (err) {
-    logger.warn(`[Scraper] Failed: ${err.message}`);
-    return null;
-  }
-}
-
-function parseAgmarknetHTML(html, commodity, state) {
-  const records = [];
-  const today = new Date().toISOString().split('T')[0];
-  // Match table rows: <td> values in price tables
-  const rowRegex = /<tr[^>]*>[\s\S]*?<\/tr>/gi;
-  const cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
-  const rows = html.match(rowRegex) || [];
-
-  for (const row of rows) {
-    const cells = [];
-    let m;
-    while ((m = cellRegex.exec(row)) !== null) {
-      cells.push(m[1].replace(/<[^>]+>/g, '').trim());
-    }
-    if (cells.length >= 5) {
-      const min = parseFloat(cells.find(c => /^\d+(\.\d+)?$/.test(c))) || 0;
-      if (min > 0 && min < 100000) {
-        records.push({
-          id: `scrape_${state}_${commodity}_${Date.now()}`,
-          commodity: commodity || 'Unknown',
-          market: cells[1] || 'Unknown Market',
-          state: state || cells[0] || 'Unknown',
-          district: '',
-          min_price: min,
-          max_price: parseFloat(cells[3]) || min * 1.15,
-          modal_price: parseFloat(cells[2]) || min * 1.08,
-          unit: 'quintal',
-          arrival_date: today,
-          source: 'agmarknet_scrape',
-        });
-      }
-    }
-  }
-  return records;
-}
-
-// ─────────────────────────────────────────────────────────────
-// SOURCE 4: Seed real price data (guaranteed fallback)
-// ─────────────────────────────────────────────────────────────
-function getSeedPrices() {
-  // Real approximate prices as of 2024 (INR/quintal)
-  return [
-    { commodity: 'Tomato',    market: 'Azadpur',     state: 'Delhi',           min: 1000, modal: 1500, max: 2000 },
-    { commodity: 'Tomato',    market: 'Kolar',        state: 'Karnataka',       min: 900,  modal: 1300, max: 1700 },
-    { commodity: 'Tomato',    market: 'Nashik',       state: 'Maharashtra',     min: 800,  modal: 1200, max: 1600 },
-    { commodity: 'Onion',     market: 'Lasalgaon',    state: 'Maharashtra',     min: 700,  modal: 950,  max: 1200 },
-    { commodity: 'Onion',     market: 'Nashik',       state: 'Maharashtra',     min: 650,  modal: 880,  max: 1100 },
-    { commodity: 'Onion',     market: 'Azadpur',      state: 'Delhi',           min: 800,  modal: 1050, max: 1300 },
-    { commodity: 'Potato',    market: 'Agra',         state: 'Uttar Pradesh',   min: 500,  modal: 750,  max: 950  },
-    { commodity: 'Potato',    market: 'Kolkata',      state: 'West Bengal',     min: 550,  modal: 780,  max: 980  },
-    { commodity: 'Wheat',     market: 'Chandigarh',   state: 'Punjab',          min: 2100, modal: 2250, max: 2400 },
-    { commodity: 'Wheat',     market: 'Ludhiana',     state: 'Punjab',          min: 2050, modal: 2200, max: 2350 },
-    { commodity: 'Wheat',     market: 'Indore',       state: 'Madhya Pradesh',  min: 2000, modal: 2150, max: 2300 },
-    { commodity: 'Rice',      market: 'Amritsar',     state: 'Punjab',          min: 2800, modal: 3000, max: 3200 },
-    { commodity: 'Rice',      market: 'Patna',        state: 'Bihar',           min: 2600, modal: 2850, max: 3100 },
-    { commodity: 'Cotton',    market: 'Yavatmal',     state: 'Maharashtra',     min: 6000, modal: 6500, max: 7000 },
-    { commodity: 'Cotton',    market: 'Rajkot',       state: 'Gujarat',         min: 5800, modal: 6300, max: 6800 },
-    { commodity: 'Chillies',  market: 'Guntur',       state: 'Andhra Pradesh',  min: 8000, modal: 10000,max: 13000},
-    { commodity: 'Soybean',   market: 'Indore',       state: 'Madhya Pradesh',  min: 4200, modal: 4500, max: 4800 },
-    { commodity: 'Maize',     market: 'Davangere',    state: 'Karnataka',       min: 1500, modal: 1700, max: 1900 },
-    { commodity: 'Sugarcane', market: 'Kolhapur',     state: 'Maharashtra',     min: 280,  modal: 300,  max: 320  },
-    { commodity: 'Groundnut', market: 'Rajkot',       state: 'Gujarat',         min: 5000, modal: 5500, max: 6000 },
-    { commodity: 'Turmeric',  market: 'Nizamabad',    state: 'Telangana',       min: 7000, modal: 8000, max: 9000 },
-    { commodity: 'Garlic',    market: 'Madhya Pradesh',state: 'Madhya Pradesh', min: 4000, modal: 5000, max: 6500 },
-  ].map(r => ({
-    id: `seed_${r.state}_${r.market}_${r.commodity}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
-    commodity: r.commodity,
-    market: r.market,
-    state: r.state,
-    district: '',
-    min_price: r.min,
-    max_price: r.max,
-    modal_price: r.modal,
-    unit: 'quintal',
-    arrival_date: '2024-01-01',
-    source: 'seed_data',
-  }));
-}
-
-// ─────────────────────────────────────────────────────────────
 // MAIN: Try all sources in order, upsert to Supabase
 // ─────────────────────────────────────────────────────────────
 async function syncMarketPrices(state, commodity) {
   logger.info(`Syncing prices for state=${state} commodity=${commodity}`);
   let records = null;
 
-  // Try Source 1: data.gov.in (with demo key)
+  // Try Source 1: data.gov.in using the configured API key
   records = await fetchFromDataGovIn(state, commodity);
 
   // Try Source 2: eNAM
@@ -263,26 +155,6 @@ async function syncMarketPrices(state, commodity) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// SEED initial data on first run
-// ─────────────────────────────────────────────────────────────
-async function seedInitialPrices() {
-  try {
-    // Check if we already have data
-    const { count } = await supabase.from('market_prices').select('*', { count: 'exact', head: true });
-    if (count > 0) {
-      logger.info(`Supabase already has ${count} price records — skipping seed`);
-      return;
-    }
-    logger.info('No prices in DB — seeding initial data...');
-    const records = getSeedPrices();
-    const { error } = await supabase.from('market_prices').upsert(records, { onConflict: 'id' });
-    if (error) logger.error('Seed error:', error.message);
-    else logger.info(`✅ Seeded ${records.length} initial price records`);
-  } catch (err) {
-    logger.error('Seed failed:', err.message);
-  }
-}
-
 // Agmarknet returns arrival_date as DD/MM/YYYY — Supabase's arrival_date column expects ISO YYYY-MM-DD.
 function parseAgmarknetDate(raw) {
   if (typeof raw !== 'string') return null;
@@ -319,4 +191,4 @@ function normalizeRecord(r) {
   };
 }
 
-module.exports = { syncMarketPrices, seedInitialPrices, getSeedPrices };
+module.exports = { syncMarketPrices };

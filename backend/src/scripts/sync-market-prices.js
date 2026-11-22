@@ -3,7 +3,7 @@ require('dotenv').config();
 const STATES = [
   'Maharashtra', 'Punjab', 'Karnataka', 'Andhra Pradesh',
   'Telangana', 'Tamil Nadu', 'Uttar Pradesh', 'Rajasthan',
-  'Gujarat', 'Madhya Pradesh', 'Delhi', 'West Bengal', 'Bihar',
+  'Gujarat', 'Kerala', 'West Bengal', 'Bihar',
 ];
 
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
