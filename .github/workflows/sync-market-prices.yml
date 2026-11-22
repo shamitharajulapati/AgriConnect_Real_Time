@@ -2,7 +2,7 @@ name: AgriConnect market price sync
 
 on:
   schedule:
-    # Run daily at 02:30 India time (21:00 UTC on the previous day).
+    # Daily at 02:30 India time (21:00 UTC on the previous day).
     - cron: '0 21 * * *'
   workflow_dispatch:
 
@@ -15,19 +15,32 @@ jobs:
     steps:
       - name: Check required cloud settings
         env:
-          RENDER_ML_URL: ${{ secrets.RENDER_ML_URL }}
-          MARKET_SYNC_SECRET: ${{ secrets.MARKET_SYNC_SECRET }}
+          AGMARKNET_KEY: ${{ secrets.AGMARKNET_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          test -n "$RENDER_ML_URL" || { echo "Missing GitHub Actions secret: RENDER_ML_URL"; exit 1; }
-          test -n "$MARKET_SYNC_SECRET" || { echo "Missing GitHub Actions secret: MARKET_SYNC_SECRET"; exit 1; }
+          test -n "$AGMARKNET_KEY" || { echo "Missing GitHub Actions secret: AGMARKNET_KEY"; exit 1; }
+          test -n "$SUPABASE_SERVICE_KEY" || { echo "Missing GitHub Actions secret: SUPABASE_SERVICE_KEY"; exit 1; }
+          test -n "$SUPABASE_URL" || { echo "Missing GitHub Actions secret: SUPABASE_URL"; exit 1; }
 
-      - name: Trigger hosted market sync
+      - name: Check out the sync script
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install sync dependencies
+        working-directory: backend
+        run: npm ci --omit=dev
+
+      - name: Fetch market data and save it to Supabase
+        working-directory: backend
         env:
-          RENDER_ML_URL: ${{ secrets.RENDER_ML_URL }}
-          MARKET_SYNC_SECRET: ${{ secrets.MARKET_SYNC_SECRET }}
-        run: |
-          curl --fail-with-body --silent --show-error \
-            --retry 2 --retry-all-errors --max-time 900 \
-            --request POST \
-            --header "X-Secret: $MARKET_SYNC_SECRET" \
-            "${RENDER_ML_URL%/}/market/sync"
+          AGMARKNET_KEY: ${{ secrets.AGMARKNET_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        run: node src/scripts/sync-market-prices.js
