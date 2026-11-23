@@ -5,6 +5,12 @@ on:
     # Daily at 02:30 India time (21:00 UTC on the previous day).
     - cron: '0 21 * * *'
   workflow_dispatch:
+    inputs:
+      backfill_history:
+        description: 'Fetch the available historical Agmarknet dates (up to 30 days)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,4 +46,5 @@ jobs:
         env:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          BACKFILL_HISTORY: ${{ inputs.backfill_history }}
         run: node src/scripts/sync-market-prices.js

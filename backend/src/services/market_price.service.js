@@ -41,15 +41,15 @@ const MANDI_API_URL = 'https://api.dharun.dev/v1/mandi';
 
 // Public cached mirror of Agmarknet. It refreshes the official data.gov.in
 // feed every few hours and avoids the intermittent timeouts from GitHub runners.
-async function fetchFromMandiApi(state, commodity) {
+async function fetchFromMandiApi(state, commodity, date) {
   try {
     const res = await axios.get(MANDI_API_URL, {
-      params: { state, commodity: commodity || undefined, limit: 1000 },
+      params: { state, commodity: commodity || undefined, date: date || undefined, limit: 1000 },
       timeout: 20000,
       headers: { Accept: 'application/json' },
     });
     const records = res.data?.data ?? [];
-    logger.info(`[Mandi API] Fetched ${records.length} records for ${state}`);
+    logger.info(`[Mandi API] Fetched ${records.length} records for ${state}${date ? ` on ${date}` : ''}`);
     return records.map(normalizeRecord).filter(Boolean);
   } catch (err) {
     const detail = err.response?.data?.error?.message || err.response?.data?.message || err.message;
@@ -101,21 +101,21 @@ async function fetchFromENAM(commodity) {
 // ─────────────────────────────────────────────────────────────
 // MAIN: Try all sources in order, upsert to Supabase
 // ─────────────────────────────────────────────────────────────
-async function syncMarketPrices(state, commodity) {
-  logger.info(`Syncing prices for state=${state} commodity=${commodity}`);
+async function syncMarketPrices(state, commodity, date) {
+  logger.info(`Syncing prices for state=${state} commodity=${commodity} date=${date || 'latest'}`);
   let records = null;
 
   // Try the cached Agmarknet mirror first. It returns current rows without
   // requiring a key and is reachable from GitHub-hosted runners.
-  records = await fetchFromMandiApi(state, commodity);
+  records = await fetchFromMandiApi(state, commodity, date);
 
   // Keep the existing providers as fallbacks when the mirror is unavailable.
-  if (!records?.length && process.env.AGMARKNET_KEY) {
+  if (!date && !records?.length && process.env.AGMARKNET_KEY) {
     records = await fetchFromDataGovIn(state, commodity);
   }
 
   // Try eNAM if the mirror and optional data.gov.in fallback have no rows.
-  if (!records?.length) {
+  if (!date && !records?.length) {
     records = await fetchFromENAM(commodity);
   }
 
@@ -126,7 +126,8 @@ async function syncMarketPrices(state, commodity) {
       String(record.state || '').trim().toLowerCase() === state.trim().toLowerCase();
     const commodityMatches = !commodity ||
       String(record.commodity || '').trim().toLowerCase() === commodity.trim().toLowerCase();
-    return stateMatches && commodityMatches;
+    const dateMatches = !date || record.arrival_date === date;
+    return stateMatches && commodityMatches && dateMatches;
   });
 
   // Do not insert synthetic seed prices when live sources return no rows.
